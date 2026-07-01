@@ -1,0 +1,17 @@
+kind = "package"
+name = "codex-learn"
+persistence_class = "stateless_adapter"
+
+[code]
+root = "."
+
+# rubric:    the SINGLE selection scorer (libraries/rubric). relearn re-fits weights
+#            over corpus_selection using the SAME feature-space / code path the scorer
+#            uses, so the fitted weights are meaningful in the scorer's space.
+# precedent: TF-IDF exemplar re-ranking (libraries/precedent) for the engagement / PR
+#            exemplar banks.
+# advocate:  the devil's-advocate gate semantics (libraries/advocate) used by the
+#            advocate-calibration helper to recompute verdicts under a new strictness.
+# workflow:  require("workflow.saga") department shape (every department uses it).
+[lib_deps]
+libraries = ["workflow", "rubric", "precedent", "advocate"]

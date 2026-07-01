@@ -1,0 +1,220 @@
+{
+  "_source": "openai/codex closed-issue analysis (8871 closed, 614 linked-to-PR, 545 code-fixed)",
+  "importance_signal": "fixed_by_linked_PR  (NOT state_reason=completed, which is mostly noise)",
+  "trust_ladder": {
+    "CONTRIBUTOR_completion": 0.737,
+    "NONE_completion": 0.655,
+    "strategy": "earn CONTRIBUTOR via doc PRs first"
+  },
+  "global_rules": [
+    "regression=+highest priority + bisect to PR",
+    "enhancement=high-variance, require strong community demand",
+    "dedup hard: 17.5% of closures were duplicates"
+  ],
+  "areas": {
+    "exec": {
+      "closed": 89,
+      "fixed": 18,
+      "fix_rate": 0.202,
+      "tier": "A_target"
+    },
+    "regression": {
+      "closed": 80,
+      "fixed": 16,
+      "fix_rate": 0.2,
+      "tier": "A_target"
+    },
+    "documentation": {
+      "closed": 124,
+      "fixed": 22,
+      "fix_rate": 0.177,
+      "tier": "A_target"
+    },
+    "hooks": {
+      "closed": 53,
+      "fixed": 8,
+      "fix_rate": 0.151,
+      "tier": "A_target"
+    },
+    "TUI": {
+      "closed": 981,
+      "fixed": 145,
+      "fix_rate": 0.148,
+      "tier": "A_target"
+    },
+    "mcp": {
+      "closed": 307,
+      "fixed": 45,
+      "fix_rate": 0.147,
+      "tier": "A_target"
+    },
+    "custom-model": {
+      "closed": 113,
+      "fixed": 14,
+      "fix_rate": 0.124,
+      "tier": "A_target"
+    },
+    "config": {
+      "closed": 134,
+      "fixed": 14,
+      "fix_rate": 0.104,
+      "tier": "B_good"
+    },
+    "sandbox": {
+      "closed": 500,
+      "fixed": 38,
+      "fix_rate": 0.076,
+      "tier": "B_good"
+    },
+    "bug": {
+      "closed": 5999,
+      "fixed": 436,
+      "fix_rate": 0.073,
+      "tier": "B_good"
+    },
+    "code-review": {
+      "closed": 124,
+      "fixed": 9,
+      "fix_rate": 0.073,
+      "tier": "B_good"
+    },
+    "subagent": {
+      "closed": 98,
+      "fixed": 7,
+      "fix_rate": 0.071,
+      "tier": "B_good"
+    },
+    "tool-calls": {
+      "closed": 411,
+      "fixed": 27,
+      "fix_rate": 0.066,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "skills": {
+      "closed": 139,
+      "fixed": 9,
+      "fix_rate": 0.065,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "azure": {
+      "closed": 78,
+      "fixed": 5,
+      "fix_rate": 0.064,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "CLI": {
+      "closed": 2063,
+      "fixed": 124,
+      "fix_rate": 0.06,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "app-server": {
+      "closed": 137,
+      "fixed": 8,
+      "fix_rate": 0.058,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "enhancement": {
+      "closed": 2322,
+      "fixed": 131,
+      "fix_rate": 0.056,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "performance": {
+      "closed": 93,
+      "fixed": 5,
+      "fix_rate": 0.054,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "session": {
+      "closed": 260,
+      "fixed": 13,
+      "fix_rate": 0.05,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "windows-os": {
+      "closed": 1182,
+      "fixed": 55,
+      "fix_rate": 0.047,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "agent": {
+      "closed": 130,
+      "fixed": 6,
+      "fix_rate": 0.046,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "remote": {
+      "closed": 62,
+      "fixed": 2,
+      "fix_rate": 0.032,
+      "tier": "C_only_if_strong_evidence"
+    },
+    "context": {
+      "closed": 252,
+      "fixed": 7,
+      "fix_rate": 0.028,
+      "tier": "D_avoid_graveyard"
+    },
+    "auth": {
+      "closed": 293,
+      "fixed": 8,
+      "fix_rate": 0.027,
+      "tier": "D_avoid_graveyard"
+    },
+    "extension": {
+      "closed": 723,
+      "fixed": 17,
+      "fix_rate": 0.024,
+      "tier": "D_avoid_graveyard"
+    },
+    "connectivity": {
+      "closed": 123,
+      "fixed": 2,
+      "fix_rate": 0.016,
+      "tier": "D_avoid_graveyard"
+    },
+    "browser": {
+      "closed": 82,
+      "fixed": 1,
+      "fix_rate": 0.012,
+      "tier": "D_avoid_graveyard"
+    },
+    "codex-web": {
+      "closed": 179,
+      "fixed": 2,
+      "fix_rate": 0.011,
+      "tier": "D_avoid_graveyard"
+    },
+    "app": {
+      "closed": 1655,
+      "fixed": 15,
+      "fix_rate": 0.009,
+      "tier": "D_avoid_graveyard"
+    },
+    "rate-limits": {
+      "closed": 383,
+      "fixed": 2,
+      "fix_rate": 0.005,
+      "tier": "D_avoid_graveyard"
+    },
+    "model-behavior": {
+      "closed": 565,
+      "fixed": 3,
+      "fix_rate": 0.005,
+      "tier": "D_avoid_graveyard"
+    },
+    "computer-use": {
+      "closed": 55,
+      "fixed": 0,
+      "fix_rate": 0.0,
+      "tier": "D_avoid_graveyard"
+    },
+    "safety-check": {
+      "closed": 169,
+      "fixed": 0,
+      "fix_rate": 0.0,
+      "tier": "D_avoid_graveyard"
+    }
+  }
+}

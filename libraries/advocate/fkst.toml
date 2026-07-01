@@ -1,0 +1,22 @@
+kind = "library"
+name = "advocate"
+
+[code]
+root = "."
+
+[lib_deps]
+libraries = []
+
+[dependency_constraints]
+allowed_lib_deps = []
+
+[library]
+name = "advocate"
+stable_id = "fkst.library.advocate"
+version = "workspace"
+
+[exports]
+public = ["advocate.*"]
+
+[visibility]
+public = false

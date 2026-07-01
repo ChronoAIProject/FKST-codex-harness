@@ -1,0 +1,97 @@
+-- codex-saga track-core unit tests (DRY-RUN posture, no network). Exercise the
+-- outcome (learning-model §5) schema build, the learning-field carry, and the
+-- durable record (dry-run egress -> intent, no real command).
+local core = require("core")
+local tk = fkst.test
+
+local function candidate_ref()
+  return { kind = "external", ref = "openai/codex#issues/1234" }
+end
+
+return {
+  -- build_outcome produces the full §5 schema, defaulting the not-yet-known
+  -- post-merge facts (ci/disposition) to their pending sentinels.
+  test_build_outcome_has_schema_5_fields = function()
+    local outcome = core.build_outcome({
+      source_ref = candidate_ref(),
+      picked_score = 0.73,
+      labels = { "regression", "exec" },
+      exemplars_used = { "openai/codex#178", "openai/codex#1" },
+      advocate_verdict = "pass",
+      advocate_reason = "approved",
+    })
+    tk.eq(outcome.source_ref.ref, "openai/codex#issues/1234")
+    tk.eq(outcome.picked_score, 0.73)
+    -- §5 fold fields: area_labels (the candidate labels) + derived type.
+    tk.eq(type(outcome.area_labels), "table")
+    tk.eq(outcome.area_labels[1], "regression")
+    tk.eq(outcome.type, "regression") -- regression takes precedence
+    tk.eq(#outcome.exemplars_used, 2)
+    tk.eq(outcome.engagement_reaction, "invited")
+    tk.eq(outcome.ci, "pending")
+    tk.eq(type(outcome.review_comment_themes), "table")
+    tk.eq(outcome.disposition, "proposed")
+    tk.eq(outcome.advocate_verdict, "pass")
+    tk.eq(outcome.advocate_reason, "approved")
+  end,
+
+  -- picked_score falls back to `score`; type/area_labels default when no labels.
+  test_build_outcome_falls_back_to_score = function()
+    local outcome = core.build_outcome({ source_ref = candidate_ref(), score = 0.5 })
+    tk.eq(outcome.picked_score, 0.5)
+    tk.eq(outcome.advocate_verdict, "unknown")
+    tk.eq(outcome.type, "other")
+    tk.eq(type(outcome.area_labels), "table")
+    tk.eq(#outcome.area_labels, 0)
+  end,
+
+  -- type classification precedence: bug, enhancement, else other.
+  test_classify_type_precedence = function()
+    tk.eq(core.classify_type({ "bug", "exec" }), "bug")
+    tk.eq(core.classify_type({ "enhancement" }), "enhancement")
+    tk.eq(core.classify_type({ "exec" }), "other")
+    tk.eq(core.classify_type({}), "other")
+  end,
+
+  -- merge_learning threads the small learning fields forward, only when unset.
+  test_merge_learning_copies_only_unset_fields = function()
+    local out = { advocate_verdict = "pass" }
+    core.merge_learning(out, {
+      picked_score = 0.73,
+      exemplars_used = { "openai/codex#178" },
+      advocate_verdict = "refuted", -- already set on `out`; must NOT overwrite
+      advocate_reason = "r",
+    })
+    tk.eq(out.picked_score, 0.73)
+    tk.eq(#out.exemplars_used, 1)
+    tk.eq(out.advocate_verdict, "pass")
+    tk.eq(out.advocate_reason, "r")
+  end,
+
+  -- The rendered outcome block is a stable text record (no diffs/bodies) carrying
+  -- the §5 fields, parseable later by codex-learn.
+  test_render_outcome_is_stable_text = function()
+    local body = core.render_outcome(core.build_outcome({
+      source_ref = candidate_ref(), picked_score = 0.73,
+      exemplars_used = { "openai/codex#178" }, advocate_verdict = "pass",
+    }))
+    tk.is_true(body:find("source_ref: openai/codex#issues/1234", 1, true) ~= nil)
+    tk.is_true(body:find("exemplars_used: openai/codex#178", 1, true) ~= nil)
+    tk.is_true(body:find("advocate_verdict: pass", 1, true) ~= nil)
+  end,
+
+  -- record_outcome is dry-run by default: it records the durable intent with NO
+  -- external command (no network).
+  test_record_outcome_dry_run_returns_intent = function()
+    local intent = core.record_outcome("d1", core.build_outcome({ source_ref = candidate_ref() }), "7")
+    tk.eq(intent.mode, "dry-run")
+    tk.eq(intent.op, "track-outcome")
+    tk.eq(#tk.command_calls(), 0)
+  end,
+
+  -- The outcome marker round-trips an idempotency tag and is marker-safe.
+  test_outcome_marker_is_marker_safe = function()
+    local marker = core.outcome_marker("codex-triage:candidate:openai/codex#1234")
+    tk.is_true(marker:find("fkst:codex-saga:outcome:", 1, true) ~= nil)
+  end,
+}

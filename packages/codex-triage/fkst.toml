@@ -1,0 +1,17 @@
+kind = "package"
+name = "codex-triage"
+persistence_class = "stateless_adapter"
+
+[code]
+root = "."
+
+# workflow: require("workflow.saga") department shape (production).
+# rubric:   the single scorer implementation, required by core.lua (production).
+# precedent/repo_map/advocate: shared PURE learning-model libraries this package
+#   exercises in tests/ (they are consumed in production by codex-saga, which is
+#   not editable here). Declared so the require resolves and the deps catalog
+#   sees them used; covering them via this consuming package's tests is the
+#   library-test mechanism the package-authoring guide prescribes (libraries do
+#   not host their own runnable test target).
+[lib_deps]
+libraries = ["workflow", "rubric", "precedent", "repo_map", "advocate"]

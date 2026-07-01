@@ -1,0 +1,40 @@
+{
+  "_note": "tiny fixture subset of data/codex-repo-structure.md for no-network unit tests",
+  "areas": {
+    "exec": {
+      "tier": "A_target",
+      "crates": [
+        "codex-rs/exec",
+        "codex-rs/exec-server"
+      ]
+    },
+    "mcp": {
+      "tier": "A_target",
+      "crates": [
+        "codex-rs/codex-mcp",
+        "codex-rs/mcp-server",
+        "codex-rs/rmcp-client"
+      ]
+    },
+    "TUI": {
+      "tier": "A_target",
+      "crates": [
+        "codex-rs/tui"
+      ]
+    },
+    "config": {
+      "tier": "B_good",
+      "crates": [
+        "codex-rs/config",
+        "codex-rs/cloud-config"
+      ]
+    },
+    "app": {
+      "tier": "D_avoid",
+      "crates": [
+        "codex-rs/app-server"
+      ],
+      "external": true
+    }
+  }
+}

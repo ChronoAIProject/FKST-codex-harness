@@ -1,0 +1,16 @@
+[workspace]
+# The engine consumes `units`; `packages` and `libraries` keep the workspace
+# split explicit for the library-dependency contract.
+units = ["packages/*", "libraries/*"]
+packages = ["packages/*"]
+libraries = ["libraries/*"]
+
+[registries]
+workspace = "workspace"
+
+# R2 (docs/dependency-strategy.md): the `workflow` library is VENDORED into
+# libraries/workflow/ (minimal saga.lua subset, real manifest), not pinned via
+# [[external_sources]]. The external-source pin was rejected by the engine because
+# the upstream `workflow` library is publishable=false and only publishable
+# libraries cross an external-source boundary. Provenance + source SHA:
+# libraries/workflow/VENDORED.pin.

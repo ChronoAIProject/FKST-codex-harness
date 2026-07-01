@@ -1,0 +1,22 @@
+kind = "library"
+name = "precedent"
+
+[code]
+root = "."
+
+[lib_deps]
+libraries = []
+
+[dependency_constraints]
+allowed_lib_deps = []
+
+[library]
+name = "precedent"
+stable_id = "fkst.library.precedent"
+version = "workspace"
+
+[exports]
+public = ["precedent.*"]
+
+[visibility]
+public = false

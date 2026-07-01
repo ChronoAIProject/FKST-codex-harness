@@ -1,0 +1,22 @@
+kind = "library"
+name = "workflow"
+
+[code]
+root = "."
+
+[lib_deps]
+libraries = []
+
+[dependency_constraints]
+allowed_lib_deps = []
+
+[library]
+name = "workflow"
+stable_id = "fkst.library.workflow"
+version = "workspace"
+
+[exports]
+public = ["workflow.*"]
+
+[visibility]
+public = false

@@ -1,0 +1,15 @@
+kind = "package.composed"
+name = "codex-saga"
+persistence_class = "saga"
+
+[code]
+root = "."
+
+[lib_deps]
+libraries = ["workflow", "precedent", "repo_map", "advocate"]
+
+[event_deps]
+packages = ["codex-triage"]
+
+[conformance]
+function = "core.saga_conformance_errors"

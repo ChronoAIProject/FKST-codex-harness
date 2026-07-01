@@ -1,0 +1,22 @@
+# Vendored library provenance (R2 fallback - see docs/dependency-strategy.md).
+#
+# The external-source pin (fkst.workspace.toml [[external_sources]] + fkst.lock)
+# was REJECTED by the engine: the real `workflow` library is publishable = false,
+# and add_external_units only admits publishable libraries across an external-source
+# boundary (it lands in denied_external_libraries otherwise). fkst-packages is
+# read/pin/vendor-only, so the publishable flag cannot be changed at the source.
+# Fallback: vendor the minimal required library with a REAL manifest.
+#
+# source_repo  = ChronoAIProject/fkst-packages (local: marketing-tbd/fkst-packages)
+# source_sha   = 8704a642f9c61023a2bbb50fade0c24483680eeb
+# source_path  = libraries/workflow/saga.lua
+# vendored     = saga.lua (verbatim, byte-identical to source @ source_sha)
+#
+# Only saga.lua is vendored: persistence_class="saga" requires
+# require("workflow.saga").department, and saga.lua has zero external requires
+# (no contract dependency), so this is the minimal conformant subset. The full
+# upstream workflow library (codex/oracle/sweep/dead_letter/liveness/...) and its
+# `contract` transitive dep are intentionally NOT vendored.
+#
+# To refresh: re-copy libraries/workflow/saga.lua from the source repo at the
+# pinned SHA (or a newer reviewed SHA) and update source_sha above.

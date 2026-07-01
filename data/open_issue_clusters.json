@@ -1,0 +1,2849 @@
+[
+ {
+  "size": 14,
+  "reactions_sum": 13,
+  "top_labels": [
+   "bug",
+   "app",
+   "browser"
+  ],
+  "rep": {
+   "n": 29211,
+   "title": "Node REPL broken: sandboxPolicy missing in MCP request meta (version mismatch)",
+   "reactions": 4
+  },
+  "members": [
+   {
+    "n": 29211,
+    "title": "Node REPL broken: sandboxPolicy missing in MCP request meta (version mismat",
+    "reactions": 4
+   },
+   {
+    "n": 29193,
+    "title": "Windows Codex Desktop 26.616: node_repl/js fails with codex/sandbox-state-m",
+    "reactions": 4
+   },
+   {
+    "n": 29238,
+    "title": "Codex Desktop Windows: node_repl/js fails before execution with missing san",
+    "reactions": 2
+   },
+   {
+    "n": 29270,
+    "title": "In-app Browser fails after desktop update: missing sandboxPolicy",
+    "reactions": 1
+   },
+   {
+    "n": 29258,
+    "title": "Browser plugin fails because sandboxPolicy is missing from sandbox-state me",
+    "reactions": 1
+   },
+   {
+    "n": 29251,
+    "title": "Computer Use / node_repl fails on Windows: missing sandboxPolicy",
+    "reactions": 1
+   },
+   {
+    "n": 29539,
+    "title": "Windows Computer Use fails: codex/sandbox-state-meta missing sandboxPolicy",
+    "reactions": 0
+   },
+   {
+    "n": 29338,
+    "title": "Windows: node_repl rejects MCP sandbox metadata with `missing field sandbox",
+    "reactions": 0
+   },
+   {
+    "n": 29269,
+    "title": "Browser Use on MacOS failing with sandboxPolicy missing field",
+    "reactions": 0
+   },
+   {
+    "n": 29240,
+    "title": "Codex in-app browser control broken after update: missing sandboxPolicy",
+    "reactions": 0
+   },
+   {
+    "n": 29226,
+    "title": "Chrome plugin does not work on Windows 11: node_repl js fails before browse",
+    "reactions": 0
+   },
+   {
+    "n": 29214,
+    "title": "Codex Desktop @chrome fails before bootstrap: node_repl/js missing sandboxP",
+    "reactions": 0
+   },
+   {
+    "n": 29213,
+    "title": "node_repl js fails with missing codex/sandbox-state-meta sandboxPolicy",
+    "reactions": 0
+   },
+   {
+    "n": 29199,
+    "title": "The Browser plugin does not work in the Codex desktop app on Windows.",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 8,
+  "reactions_sum": 54,
+  "top_labels": [
+   "bug",
+   "connectivity",
+   "app"
+  ],
+  "rep": {
+   "n": 15046,
+   "title": "Error running remote compact task: stream disconnected before completion: error sending request for url (https://chatgpt.com/backend-api/codex/responses/compact",
+   "reactions": 32
+  },
+  "members": [
+   {
+    "n": 15046,
+    "title": "Error running remote compact task: stream disconnected before completion: e",
+    "reactions": 32
+   },
+   {
+    "n": 13245,
+    "title": "Stream disconnected before completion: error sending request for url (https",
+    "reactions": 17
+   },
+   {
+    "n": 22472,
+    "title": "Codex stream disconnected before completion on clean conversations",
+    "reactions": 3
+   },
+   {
+    "n": 11735,
+    "title": "Stream disconnected before completion",
+    "reactions": 2
+   },
+   {
+    "n": 30609,
+    "title": "Keep on output stream disconnected before completion: error sending request",
+    "reactions": 0
+   },
+   {
+    "n": 26900,
+    "title": "stream disconnected before completion: error sending request for url (https",
+    "reactions": 0
+   },
+   {
+    "n": 11424,
+    "title": "stream disconnected before completion: error sending request for url",
+    "reactions": 0
+   },
+   {
+    "n": 10985,
+    "title": "stream disconnected before completion: error sending request for url (https",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 7,
+  "reactions_sum": 5,
+  "top_labels": [
+   "bug",
+   "connectivity",
+   "CLI"
+  ],
+  "rep": {
+   "n": 23842,
+   "title": "Stream disconnected before completion: Transport error: network error: error decoding response body",
+   "reactions": 3
+  },
+  "members": [
+   {
+    "n": 23842,
+    "title": "Stream disconnected before completion: Transport error: network error: erro",
+    "reactions": 3
+   },
+   {
+    "n": 29087,
+    "title": "stream disconnected before completion: Transport error: network error: erro",
+    "reactions": 1
+   },
+   {
+    "n": 14670,
+    "title": "\u25a0 stream disconnected before completion: Transport error: network error: er",
+    "reactions": 1
+   },
+   {
+    "n": 21362,
+    "title": "stream disconnected before completion: Transport error: network error: erro",
+    "reactions": 0
+   },
+   {
+    "n": 10904,
+    "title": "stream disconnected before completion: Transport error: network error: erro",
+    "reactions": 0
+   },
+   {
+    "n": 10010,
+    "title": "Stream disconnected before completion: Transport error: network error: erro",
+    "reactions": 0
+   },
+   {
+    "n": 9872,
+    "title": "stream disconnected before completion: Transport error: network error: erro",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 7,
+  "reactions_sum": 11,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "computer-use"
+  ],
+  "rep": {
+   "n": 27287,
+   "title": "Computer Use bootstrap fails on Windows: @oai/sky internal subpath is not exported",
+   "reactions": 11
+  },
+  "members": [
+   {
+    "n": 27287,
+    "title": "Computer Use bootstrap fails on Windows: @oai/sky internal subpath is not e",
+    "reactions": 11
+   },
+   {
+    "n": 28834,
+    "title": "Computer Use plugin fails after update due to missing @oai/sky package expo",
+    "reactions": 0
+   },
+   {
+    "n": 28762,
+    "title": "Bug report: Computer Use fails on Windows because @oai/sky does not export ",
+    "reactions": 0
+   },
+   {
+    "n": 28717,
+    "title": "Computer Use fails on Windows: @oai/sky package exports blocks computer_use",
+    "reactions": 0
+   },
+   {
+    "n": 28676,
+    "title": "Computer Use plugin fails on Windows due to @oai/sky package subpath not ex",
+    "reactions": 0
+   },
+   {
+    "n": 28157,
+    "title": "Computer Use fails on Windows due to @oai/sky package exports mismatch",
+    "reactions": 0
+   },
+   {
+    "n": 28121,
+    "title": "Computer Use plugin fails after Codex update because @oai/sky package expor",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 6,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "CLI",
+   "tool-calls"
+  ],
+  "rep": {
+   "n": 28640,
+   "title": "Codex blocks first model request on slow MCP tools/list",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 28640,
+    "title": "Codex blocks first model request on slow MCP tools/list",
+    "reactions": 0
+   },
+   {
+    "n": 28639,
+    "title": "Codex returns an unbounded huge stdout tool result",
+    "reactions": 0
+   },
+   {
+    "n": 27760,
+    "title": "CLI bug: Codex repeatedly executes a valid sibling after a schema-invalid p",
+    "reactions": 0
+   },
+   {
+    "n": 27759,
+    "title": "CLI bug: Codex does not bound repeated identical tool calls",
+    "reactions": 0
+   },
+   {
+    "n": 27758,
+    "title": "CLI bug: Codex leaves an interrupted child process running",
+    "reactions": 0
+   },
+   {
+    "n": 27757,
+    "title": "CLI bug: Codex repeatedly resubmits the same tool-call result",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 6,
+  "reactions_sum": 15,
+  "top_labels": [
+   "bug",
+   "extension",
+   "remote"
+  ],
+  "rep": {
+   "n": 17765,
+   "title": "VS Code Remote-SSH extension uses global /tmp/codex-ipc on multi-user Linux hosts, causing EACCES and cross-user IPC collisions",
+   "reactions": 9
+  },
+  "members": [
+   {
+    "n": 17765,
+    "title": "VS Code Remote-SSH extension uses global /tmp/codex-ipc on multi-user Linux",
+    "reactions": 9
+   },
+   {
+    "n": 15435,
+    "title": "VS Code extension fails on multi-user Linux server with EACCES on /tmp/code",
+    "reactions": 5
+   },
+   {
+    "n": 15994,
+    "title": "VS Code Remote SSH fails on multi-user Linux host",
+    "reactions": 1
+   },
+   {
+    "n": 27650,
+    "title": "Found an issue with the latest update about IDE extension: IPC socket dir /",
+    "reactions": 0
+   },
+   {
+    "n": 26761,
+    "title": "Codex IPC socket directory /tmp/codex-ipc is not per-user, blocking other u",
+    "reactions": 0
+   },
+   {
+    "n": 22966,
+    "title": "[VS Code extension / Linux] IpcRouterManager fails to start: EACCES creatin",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 5,
+  "reactions_sum": 2,
+  "top_labels": [
+   "bug",
+   "app",
+   "performance"
+  ],
+  "rep": {
+   "n": 29814,
+   "title": "Codex 0.142.0 still writes high-volume TRACE logs into ~/.codex/logs_2.sqlite after restart",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 29814,
+    "title": "Codex 0.142.0 still writes high-volume TRACE logs into ~/.codex/logs_2.sqli",
+    "reactions": 1
+   },
+   {
+    "n": 29463,
+    "title": "Windows Codex app continuously writes high-volume TRACE websocket logs to ~",
+    "reactions": 1
+   },
+   {
+    "n": 30392,
+    "title": "Codex Desktop persists high-volume TRACE logs despite RUST_LOG=warn",
+    "reactions": 0
+   },
+   {
+    "n": 30391,
+    "title": "Codex Desktop persists high-volume TRACE logs despite RUST_LOG=warn",
+    "reactions": 0
+   },
+   {
+    "n": 30236,
+    "title": "Codex App writes high-volume TRACE logs to logs_2.sqlite despite RUST_LOG=w",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 5,
+  "reactions_sum": 12,
+  "top_labels": [
+   "bug",
+   "app"
+  ],
+  "rep": {
+   "n": 27694,
+   "title": "Codex Desktop 26.609.30741 crashes Dock external extra via CodexDockTilePlugin setDockTile recursion on macOS",
+   "reactions": 8
+  },
+  "members": [
+   {
+    "n": 27694,
+    "title": "Codex Desktop 26.609.30741 crashes Dock external extra via CodexDockTilePlu",
+    "reactions": 8
+   },
+   {
+    "n": 28240,
+    "title": "Bug: CodexDockTilePlugin infinite recursion crash in setDockTile:",
+    "reactions": 2
+   },
+   {
+    "n": 28350,
+    "title": "macOS Dock helper crash in CodexDockTilePlugin setDockTile on Intel Mac",
+    "reactions": 1
+   },
+   {
+    "n": 27776,
+    "title": "macOS Dock helper crashes recursively in CodexDockTilePlugin setDockTile af",
+    "reactions": 1
+   },
+   {
+    "n": 28237,
+    "title": "CodexDockTilePlugin infinite recursion crash in setDockTile:",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 5,
+  "reactions_sum": 13,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 25197,
+   "title": "Windows desktop notification click opens invalid WindowsApps path with type=click query",
+   "reactions": 9
+  },
+  "members": [
+   {
+    "n": 25197,
+    "title": "Windows desktop notification click opens invalid WindowsApps path with type",
+    "reactions": 9
+   },
+   {
+    "n": 25227,
+    "title": "Windows Desktop 26.527.3686.0: clicking toast notification launches Codex.e",
+    "reactions": 3
+   },
+   {
+    "n": 25284,
+    "title": "Windows Codex app: permission notification click/minimized state launches E",
+    "reactions": 1
+   },
+   {
+    "n": 26332,
+    "title": "Windows: Toast notification activation causes \"Unable to find Electron app\"",
+    "reactions": 0
+   },
+   {
+    "n": 25231,
+    "title": "Windows Codex Desktop notification click launches Electron with type=click&",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 5,
+  "reactions_sum": 3,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 25175,
+   "title": "JavaScript runtime error after closing terminal window",
+   "reactions": 2
+  },
+  "members": [
+   {
+    "n": 25175,
+    "title": "JavaScript runtime error after closing terminal window",
+    "reactions": 2
+   },
+   {
+    "n": 25672,
+    "title": "AttachConsole failed when closing built-in terminal on Windows",
+    "reactions": 1
+   },
+   {
+    "n": 25415,
+    "title": "Windows: closing a Claude Code session triggers uncaught \"AttachConsole fai",
+    "reactions": 0
+   },
+   {
+    "n": 25372,
+    "title": "Codex Desktop Windows: `AttachConsole failed` uncaught exception from node-",
+    "reactions": 0
+   },
+   {
+    "n": 25272,
+    "title": "Windows Codex Desktop shows Electron \"AttachConsole failed\" dialog from nod",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 4,
+  "reactions_sum": 9,
+  "top_labels": [
+   "bug",
+   "app",
+   "connectivity"
+  ],
+  "rep": {
+   "n": 28509,
+   "title": "Selected model is at capacity. Please try a different model.",
+   "reactions": 7
+  },
+  "members": [
+   {
+    "n": 28509,
+    "title": "Selected model is at capacity. Please try a different model.",
+    "reactions": 7
+   },
+   {
+    "n": 30546,
+    "title": "Selected model is at capacity. Please try a different model.",
+    "reactions": 2
+   },
+   {
+    "n": 30569,
+    "title": "Selected model is at capacity. Please try a different model.",
+    "reactions": 0
+   },
+   {
+    "n": 28557,
+    "title": "Selected model is at capacity. Please try a different model.",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 4,
+  "reactions_sum": 19,
+  "top_labels": [
+   "bug",
+   "app",
+   "app-server"
+  ],
+  "rep": {
+   "n": 30224,
+   "title": "This model is not supported when using X-OpenAI-Internal-Codex-Responses-Lite.",
+   "reactions": 19
+  },
+  "members": [
+   {
+    "n": 30224,
+    "title": "This model is not supported when using X-OpenAI-Internal-Codex-Responses-Li",
+    "reactions": 19
+   },
+   {
+    "n": 30461,
+    "title": "Bug: \"Model not supported when using X-OpenAI-Internal-Codex-Responses-Lite",
+    "reactions": 0
+   },
+   {
+    "n": 30422,
+    "title": "This model is not supported when using X-OpenAI-Internal-Codex-Responses-Li",
+    "reactions": 0
+   },
+   {
+    "n": 30406,
+    "title": "Codex App: GPT-5.5 fails with X-OpenAI-Internal-Codex-Responses-Lite while ",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 4,
+  "reactions_sum": 13,
+  "top_labels": [
+   "bug",
+   "app",
+   "windows-os"
+  ],
+  "rep": {
+   "n": 22672,
+   "title": "Windows Codex App cannot locate CLI when installed on non-standard drive",
+   "reactions": 12
+  },
+  "members": [
+   {
+    "n": 22672,
+    "title": "Windows Codex App cannot locate CLI when installed on non-standard drive",
+    "reactions": 12
+   },
+   {
+    "n": 22423,
+    "title": "Unable to locate the Codex CLI binary. Set CODEX_CLI_PATH or ensure the Ele",
+    "reactions": 1
+   },
+   {
+    "n": 30094,
+    "title": "Desktop App cannot start after switching Agent Environment to WSL: \"Unable ",
+    "reactions": 0
+   },
+   {
+    "n": 28392,
+    "title": "Windows Store app fails on startup: \"Unable to locate the Codex CLI binary\"",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 4,
+  "reactions_sum": 9,
+  "top_labels": [
+   "bug",
+   "app",
+   "computer-use"
+  ],
+  "rep": {
+   "n": 28184,
+   "title": "\u201cCodex Computer Use\u201d is damaged and can\u2019t be opened after Mac restart",
+   "reactions": 8
+  },
+  "members": [
+   {
+    "n": 28184,
+    "title": "\u201cCodex Computer Use\u201d is damaged and can\u2019t be opened after Mac restart",
+    "reactions": 8
+   },
+   {
+    "n": 29584,
+    "title": "[macOS] Codex Computer Use helper is damaged after 26.616.71553 update",
+    "reactions": 1
+   },
+   {
+    "n": 29190,
+    "title": "Regression: Codex Computer Use helper is damaged after 26.616.41845 auto-up",
+    "reactions": 0
+   },
+   {
+    "n": 28485,
+    "title": "Codex Computer Use helper reported damaged after latest desktop app update",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 4,
+  "reactions_sum": 10,
+  "top_labels": [
+   "bug",
+   "subagent",
+   "CLI"
+  ],
+  "rep": {
+   "n": 27205,
+   "title": "Invalid Value: 'tools'. Function 'functions.followup_task' declares encrypted parameters but is not configured for encrypted tool use by this model.",
+   "reactions": 6
+  },
+  "members": [
+   {
+    "n": 27205,
+    "title": "Invalid Value: 'tools'. Function 'functions.followup_task' declares encrypt",
+    "reactions": 6
+   },
+   {
+    "n": 27548,
+    "title": "Invalid Value: 'tools'. Function 'functions.spawn_agent' declares encrypted",
+    "reactions": 2
+   },
+   {
+    "n": 27622,
+    "title": "Codex no usable and all the threads are down with this error Invalid Value:",
+    "reactions": 1
+   },
+   {
+    "n": 27589,
+    "title": "Invalid Value: 'tools'. Function 'functions.spawn_agent' declares encrypted",
+    "reactions": 1
+   }
+  ]
+ },
+ {
+  "size": 4,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "app",
+   "browser"
+  ],
+  "rep": {
+   "n": 22462,
+   "title": "Windows Chrome plugin hangs in setupAtlasRuntime despite extension/native host checks passing",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 22462,
+    "title": "Windows Chrome plugin hangs in setupAtlasRuntime despite extension/native h",
+    "reactions": 0
+   },
+   {
+    "n": 21878,
+    "title": "Codex Desktop Chrome plugin times out at setupAtlasRuntime on Windows despi",
+    "reactions": 0
+   },
+   {
+    "n": 21851,
+    "title": "Codex Desktop Chrome plugin connection times out despite extension and nati",
+    "reactions": 0
+   },
+   {
+    "n": 21705,
+    "title": "Codex Desktop Chrome plugin times out during extension handshake despite ex",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 0,
+  "top_labels": [
+   "enhancement",
+   "app",
+   "extension"
+  ],
+  "rep": {
+   "n": 30421,
+   "title": "[Feature Request] Support Chinese (zh-CN) UI localization / i18n",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 30421,
+    "title": "[Feature Request] Support Chinese (zh-CN) UI localization / i18n",
+    "reactions": 0
+   },
+   {
+    "n": 29204,
+    "title": "[Feature Request] i18n support: Simplified Chinese (\u7b80\u4f53\u4e2d\u6587) UI localization",
+    "reactions": 0
+   },
+   {
+    "n": 29202,
+    "title": "[Feature Request] i18n support: Simplified Chinese (\u7b80\u4f53\u4e2d\u6587) UI localization",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "safety-check",
+   "codex-web"
+  ],
+  "rep": {
+   "n": 19505,
+   "title": "Cyber security issue",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 19505,
+    "title": "Cyber security issue",
+    "reactions": 1
+   },
+   {
+    "n": 29360,
+    "title": "Trusted Access for Cyber verification flow does not start",
+    "reactions": 0
+   },
+   {
+    "n": 12920,
+    "title": "chatgpt.com/cyber doesn't allow me to start verification",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 2,
+  "top_labels": [
+   "bug",
+   "CLI",
+   "tool-calls"
+  ],
+  "rep": {
+   "n": 29334,
+   "title": "Codex CLI 0.141.0 crashes with trace trap / SIGTRAP on macOS 15.7.7 Intel x86_64.",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 29334,
+    "title": "Codex CLI 0.141.0 crashes with trace trap / SIGTRAP on macOS 15.7.7 Intel x",
+    "reactions": 1
+   },
+   {
+    "n": 29111,
+    "title": "Codex CLI v0.141.0 crashes with zsh: trace trap / SIGTRAP when attempting s",
+    "reactions": 1
+   },
+   {
+    "n": 29112,
+    "title": "trace trap cdoex",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "CLI",
+   "agent"
+  ],
+  "rep": {
+   "n": 28547,
+   "title": "\u25a0 Conversation interrupted - tell the model what to do differently. Something went wrong? Hit `/feedback` to report the issue.",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 28547,
+    "title": "\u25a0 Conversation interrupted - tell the model what to do differently. Somethi",
+    "reactions": 0
+   },
+   {
+    "n": 23579,
+    "title": "Conversation interrupted",
+    "reactions": 0
+   },
+   {
+    "n": 14142,
+    "title": "Conversation interrupted",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "context",
+   "app"
+  ],
+  "rep": {
+   "n": 27555,
+   "title": "The entire conversation breaks after automatic context compaction (invalid_enum_value: 'context_compaction')",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 27555,
+    "title": "The entire conversation breaks after automatic context compaction (invalid_",
+    "reactions": 0
+   },
+   {
+    "n": 27511,
+    "title": "Invalid value: 'context_compaction'",
+    "reactions": 0
+   },
+   {
+    "n": 27269,
+    "title": "Remote connection context_compaction error in main session",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 5,
+  "top_labels": [
+   "bug",
+   "auth",
+   "windows-os"
+  ],
+  "rep": {
+   "n": 16052,
+   "title": "codex login fails: Cloudflare challenge blocks CLI token exchange (Australia/Linux)",
+   "reactions": 5
+  },
+  "members": [
+   {
+    "n": 16052,
+    "title": "codex login fails: Cloudflare challenge blocks CLI token exchange (Australi",
+    "reactions": 5
+   },
+   {
+    "n": 26764,
+    "title": "Login failed \u2014 token exchange failed: error sending request to URL (https:/",
+    "reactions": 0
+   },
+   {
+    "n": 24633,
+    "title": "Codex VS Code extension cannot re-authenticate in Dev Container after succe",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "rate-limits",
+   "app"
+  ],
+  "rep": {
+   "n": 26655,
+   "title": "exceeded retry limit, last status: 429 Too Many Requests",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 26655,
+    "title": "exceeded retry limit, last status: 429 Too Many Requests",
+    "reactions": 0
+   },
+   {
+    "n": 22122,
+    "title": "exceeded retry limit, last status: 429 Too Many Requests, request id: 9f9fe",
+    "reactions": 0
+   },
+   {
+    "n": 11434,
+    "title": "Got \"exceeded retry limit, last status: 429 Too Many Requests\"",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 22,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "auth"
+  ],
+  "rep": {
+   "n": 25203,
+   "title": "GitHub OAuth callback fails with \"Unable to find Electron app\" on Windows",
+   "reactions": 21
+  },
+  "members": [
+   {
+    "n": 25203,
+    "title": "GitHub OAuth callback fails with \"Unable to find Electron app\" on Windows",
+    "reactions": 21
+   },
+   {
+    "n": 25188,
+    "title": "Windows Codex app deep link / OAuth callback fails: \"Unable to find Electro",
+    "reactions": 1
+   },
+   {
+    "n": 25901,
+    "title": "Windows Codex App: Google plugin OAuth callback fails with \"Unable to find ",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 4,
+  "top_labels": [
+   "bug",
+   "CLI",
+   "app-server"
+  ],
+  "rep": {
+   "n": 24021,
+   "title": "can't open codex cli!",
+   "reactions": 3
+  },
+  "members": [
+   {
+    "n": 24021,
+    "title": "can't open codex cli!",
+    "reactions": 3
+   },
+   {
+    "n": 24565,
+    "title": "Plan Mode Bug",
+    "reactions": 1
+   },
+   {
+    "n": 24514,
+    "title": "IDE context could not be enabled",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 36,
+  "top_labels": [
+   "bug",
+   "mcp",
+   "computer-use"
+  ],
+  "rep": {
+   "n": 6020,
+   "title": "MCP client for `X` failed to start: handshaking with MCP server failed: connection closed: initialize response",
+   "reactions": 34
+  },
+  "members": [
+   {
+    "n": 6020,
+    "title": "MCP client for `X` failed to start: handshaking with MCP server failed: con",
+    "reactions": 34
+   },
+   {
+    "n": 22856,
+    "title": "MCP client for `computer-use` failed to start",
+    "reactions": 2
+   },
+   {
+    "n": 11308,
+    "title": "MCP client for `playwright` failed to start",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 11,
+  "top_labels": [
+   "bug",
+   "remote",
+   "app"
+  ],
+  "rep": {
+   "n": 22804,
+   "title": "Codex Desktop Remote Control authorization fails on account_user_id mismatch",
+   "reactions": 6
+  },
+  "members": [
+   {
+    "n": 22804,
+    "title": "Codex Desktop Remote Control authorization fails on account_user_id mismatc",
+    "reactions": 6
+   },
+   {
+    "n": 22775,
+    "title": "Remote control authorization fails in Codex 26.513.20950 (2816): \"Failed to",
+    "reactions": 5
+   },
+   {
+    "n": 22810,
+    "title": "Codex desktop \"Control other devices\" authorization fails due to account mi",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 3,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "connectivity",
+   "CLI"
+  ],
+  "rep": {
+   "n": 22156,
+   "title": "Falling back from WebSockets to HTTPS transport. stream disconnected before completion: websocket closed by server   before response.completed",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 22156,
+    "title": "Falling back from WebSockets to HTTPS transport. stream disconnected before",
+    "reactions": 1
+   },
+   {
+    "n": 15014,
+    "title": "Falling back from WebSockets to HTTPS transport. stream disconnected before",
+    "reactions": 0
+   },
+   {
+    "n": 11682,
+    "title": "Regression: stream disconnected before completion on Windows in 0.100.0+ (w",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 30518,
+   "title": "Codex Desktop fails to open an already-running IntelliJ IDEA instance on Windows",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 30518,
+    "title": "Codex Desktop fails to open an already-running IntelliJ IDEA instance on Wi",
+    "reactions": 0
+   },
+   {
+    "n": 24726,
+    "title": "Codex fails to open files in an already running IntelliJ IDEA instance and ",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 5,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 26168,
+   "title": "Codex Windows app maximized window leaks thin strip onto adjacent monitor",
+   "reactions": 4
+  },
+  "members": [
+   {
+    "n": 26168,
+    "title": "Codex Windows app maximized window leaks thin strip onto adjacent monitor",
+    "reactions": 4
+   },
+   {
+    "n": 30448,
+    "title": "Codex App window leaks a thin edge onto the adjacent monitor in dual-screen",
+    "reactions": 1
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "extension",
+   "app-server"
+  ],
+  "rep": {
+   "n": 30402,
+   "title": "openai.chatgpt extension breaks on code-server: chatSessionsProvider proposed API gap + Node 22 navigator migration",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 30402,
+    "title": "openai.chatgpt extension breaks on code-server: chatSessionsProvider propos",
+    "reactions": 0
+   },
+   {
+    "n": 30398,
+    "title": "openai.chatgpt extension breaks on code-server: chatSessionsProvider propos",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "auth",
+   "CLI"
+  ],
+  "rep": {
+   "n": 30351,
+   "title": "401 Unauthorized Missing scopes: api.responses.write(Codex App and Codex CLI fail after signing in with ChatGPT)",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 30351,
+    "title": "401 Unauthorized Missing scopes: api.responses.write(Codex App and Codex CL",
+    "reactions": 0
+   },
+   {
+    "n": 26742,
+    "title": "Codex CLI logged in using ChatGPT but fails with 401 Missing scopes api.res",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 30339,
+   "title": "Windows Desktop App fails to start: app-server websocket closed (code=3221225501) \u2014 plugin marketplace sync + invalid internal config key",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 30339,
+    "title": "Windows Desktop App fails to start: app-server websocket closed (code=32212",
+    "reactions": 0
+   },
+   {
+    "n": 25600,
+    "title": "Codex Windows App fails to start: app-server websocket closed (code=3221225",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "CLI",
+   "app"
+  ],
+  "rep": {
+   "n": 30300,
+   "title": "macOS x86_64: codex-cli 0.142.2 crashes with SIGTRAP/EXC_BREAKPOINT during gpt-5.5 runs",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 30300,
+    "title": "macOS x86_64: codex-cli 0.142.2 crashes with SIGTRAP/EXC_BREAKPOINT during ",
+    "reactions": 0
+   },
+   {
+    "n": 30005,
+    "title": "Codex macOS app crashes on startup with EXC_BREAKPOINT/SIGTRAP in CrBrowser",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 17,
+  "top_labels": [
+   "enhancement",
+   "app"
+  ],
+  "rep": {
+   "n": 19504,
+   "title": "Add full RTL (Right-To-Left) text direction support for Arabic & Hebrew users",
+   "reactions": 15
+  },
+  "members": [
+   {
+    "n": 19504,
+    "title": "Add full RTL (Right-To-Left) text direction support for Arabic & Hebrew use",
+    "reactions": 15
+   },
+   {
+    "n": 30129,
+    "title": "Improve RTL language support in Codex conversations",
+    "reactions": 2
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "enhancement",
+   "app"
+  ],
+  "rep": {
+   "n": 30025,
+   "title": "[Feature Request] Add i18n/L10n support for Chinese (Simplified) and other languages",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 30025,
+    "title": "[Feature Request] Add i18n/L10n support for Chinese (Simplified) and other ",
+    "reactions": 0
+   },
+   {
+    "n": 30022,
+    "title": "[Feature Request] Add i18n/L10n support for Chinese (Simplified) and other ",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "tool-calls",
+   "app"
+  ],
+  "rep": {
+   "n": 29840,
+   "title": "Gmail connector _create_draft fails for threaded replies with reply_message_id: Subject does not match",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 29840,
+    "title": "Gmail connector _create_draft fails for threaded replies with reply_message",
+    "reactions": 0
+   },
+   {
+    "n": 23957,
+    "title": "Gmail connector rejects valid threaded reply with \"Subject does not match\"",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "app",
+   "bug",
+   "windows-os"
+  ],
+  "rep": {
+   "n": 29799,
+   "title": "Codex Windows app-server writes excessive TRACE logs to logs_2.sqlite WAL",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 29799,
+    "title": "Codex Windows app-server writes excessive TRACE logs to logs_2.sqlite WAL",
+    "reactions": 0
+   },
+   {
+    "n": 29798,
+    "title": "Codex Windows app-server writes excessive TRACE logs to logs_2.sqlite WAL",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "app",
+   "computer-use"
+  ],
+  "rep": {
+   "n": 29772,
+   "title": "Appshots still fail with \u201cUnable to attach appshot\u201d on 26.616.81150 after pressing both Command keys",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 29772,
+    "title": "Appshots still fail with \u201cUnable to attach appshot\u201d on 26.616.81150 after p",
+    "reactions": 0
+   },
+   {
+    "n": 28622,
+    "title": "Appshots fail with \u201cUnable to attach appshot\u201d when pressing hotkey in 26.61",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "app",
+   "app-server"
+  ],
+  "rep": {
+   "n": 29589,
+   "title": "Codex app-server persists high-frequency TRACE logs to logs_2.sqlite despite analytics/plugins disabled",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 29589,
+    "title": "Codex app-server persists high-frequency TRACE logs to logs_2.sqlite despit",
+    "reactions": 0
+   },
+   {
+    "n": 29588,
+    "title": "Codex app-server persists high-frequency TRACE logs to logs_2.sqlite despit",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "app"
+  ],
+  "rep": {
+   "n": 29537,
+   "title": "Codex app UI remains English after selecting zh-CN in latest desktop build",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 29537,
+    "title": "Codex app UI remains English after selecting zh-CN in latest desktop build",
+    "reactions": 1
+   },
+   {
+    "n": 29536,
+    "title": "Codex app UI remains English after selecting zh-CN in latest desktop build",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 4,
+  "top_labels": [
+   "skills",
+   "enhancement",
+   "app"
+  ],
+  "rep": {
+   "n": 29517,
+   "title": "Update openai-curated Superpowers plugin to upstream 6.0.3",
+   "reactions": 4
+  },
+  "members": [
+   {
+    "n": 29517,
+    "title": "Update openai-curated Superpowers plugin to upstream 6.0.3",
+    "reactions": 4
+   },
+   {
+    "n": 28846,
+    "title": "openai-curated Superpowers plugin is outdated: 5.1.3 vs upstream 6.0.2",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 29395,
+   "title": "Codex Windows tray icon is white/invisible on light hidden-tray overflow background",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 29395,
+    "title": "Codex Windows tray icon is white/invisible on light hidden-tray overflow ba",
+    "reactions": 1
+   },
+   {
+    "n": 29185,
+    "title": "Windows tray icon is nearly invisible on light backgrounds",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "mcp",
+   "app"
+  ],
+  "rep": {
+   "n": 29387,
+   "title": "[Canva] prepare-design-generation returns no UI/HTML in Codex Windows app",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 29387,
+    "title": "[Canva] prepare-design-generation returns no UI/HTML in Codex Windows app",
+    "reactions": 0
+   },
+   {
+    "n": 29210,
+    "title": "Canva MCP app succeeds but returns no HTML preview in Codex Desktop",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "session",
+   "windows-os"
+  ],
+  "rep": {
+   "n": 29323,
+   "title": "Codex Desktop thread disappears from project list when initial user request is stored in pasted-text attachment",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 29323,
+    "title": "Codex Desktop thread disappears from project list when initial user request",
+    "reactions": 0
+   },
+   {
+    "n": 29069,
+    "title": "Codex history thread disappears when initial prompt is stored only as paste",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 4,
+  "top_labels": [
+   "bug",
+   "app"
+  ],
+  "rep": {
+   "n": 27344,
+   "title": "Codex App macOS Intel: traffic light window controls are clipped at the bottom",
+   "reactions": 4
+  },
+  "members": [
+   {
+    "n": 27344,
+    "title": "Codex App macOS Intel: traffic light window controls are clipped at the bot",
+    "reactions": 4
+   },
+   {
+    "n": 29183,
+    "title": "macOS Apple Silicon (arm64): traffic light window controls clipped at botto",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 2,
+  "top_labels": [
+   "bug",
+   "extension",
+   "session"
+  ],
+  "rep": {
+   "n": 29182,
+   "title": "Codex crashed with the following error",
+   "reactions": 2
+  },
+  "members": [
+   {
+    "n": 29182,
+    "title": "Codex crashed with the following error",
+    "reactions": 2
+   },
+   {
+    "n": 29118,
+    "title": "Codex crashed",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 15,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "sandbox"
+  ],
+  "rep": {
+   "n": 28982,
+   "title": "Windows app 26.616.3309.0: native sandbox setup helper fails with \u201cThe specified module could not be found",
+   "reactions": 13
+  },
+  "members": [
+   {
+    "n": 28982,
+    "title": "Windows app 26.616.3309.0: native sandbox setup helper fails with \u201cThe spec",
+    "reactions": 13
+   },
+   {
+    "n": 29127,
+    "title": "Windows 10: sandbox setup helper shows \"The specified module could not be f",
+    "reactions": 2
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "app",
+   "windows-os"
+  ],
+  "rep": {
+   "n": 29090,
+   "title": "Codex App: Terminal panel flashes briefly then disappears on macOS",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 29090,
+    "title": "Codex App: Terminal panel flashes briefly then disappears on macOS",
+    "reactions": 0
+   },
+   {
+    "n": 25256,
+    "title": "Windows desktop: bottom panel flashes briefly then immediately disappears",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "sandbox"
+  ],
+  "rep": {
+   "n": 27313,
+   "title": "Node REPL kernel fails to start: CreateProcessAsUserW failed: 5",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 27313,
+    "title": "Node REPL kernel fails to start: CreateProcessAsUserW failed: 5",
+    "reactions": 1
+   },
+   {
+    "n": 29059,
+    "title": "Unable to Use Computer Use",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 3,
+  "top_labels": [
+   "bug",
+   "sandbox",
+   "app"
+  ],
+  "rep": {
+   "n": 29054,
+   "title": "Full access mode still asks for approval after reconnecting to a remote environment",
+   "reactions": 3
+  },
+  "members": [
+   {
+    "n": 29054,
+    "title": "Full access mode still asks for approval after reconnecting to a remote env",
+    "reactions": 3
+   },
+   {
+    "n": 24934,
+    "title": "Windows Codex App still asks for approval even with approval_policy=never a",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 28950,
+   "title": "Windows: Chrome plugin install fails to create com.openai.codexextension Native Messaging Host",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 28950,
+    "title": "Windows: Chrome plugin install fails to create com.openai.codexextension Na",
+    "reactions": 0
+   },
+   {
+    "n": 24040,
+    "title": "Codex Desktop Chrome plugin: Native Messaging Host registry key missing on ",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 3,
+  "top_labels": [
+   "bug",
+   "app",
+   "session"
+  ],
+  "rep": {
+   "n": 28528,
+   "title": "Codex app: Archived chats cannot be deleted",
+   "reactions": 3
+  },
+  "members": [
+   {
+    "n": 28528,
+    "title": "Codex app: Archived chats cannot be deleted",
+    "reactions": 3
+   },
+   {
+    "n": 28565,
+    "title": "Archived chats cannot be deleted in the Codex macOS desktop app",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 28408,
+   "title": "{\"timestamp\":\"2026-06-15T23:33:04.169971Z\",\"level\":\"WARN\",\"fields\":{\"message\":\"Failed to create shell snapshot for powershell: Shell snapshot not supported yet for PowerShell\"},\"target\":\"codex_core::shell_snapshot\"}",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 28408,
+    "title": "{\"timestamp\":\"2026-06-15T23:33:04.169971Z\",\"level\":\"WARN\",\"fields\":{\"messag",
+    "reactions": 0
+   },
+   {
+    "n": 25833,
+    "title": "(code=1, signal=null). Most recent error: {\"timestamp\":\"2026-06-02T,\"level\"",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "app",
+   "session"
+  ],
+  "rep": {
+   "n": 28343,
+   "title": "Archived chat delete shows success toast but does not remove archived thread",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 28343,
+    "title": "Archived chat delete shows success toast but does not remove archived threa",
+    "reactions": 0
+   },
+   {
+    "n": 28298,
+    "title": "Codex App archived chats bulk delete shows success but does not remove arch",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "CLI"
+  ],
+  "rep": {
+   "n": 27194,
+   "title": "Codex CLI self-update still fails on Ubuntu 22.04: missing SHA-256 digest for Linux x64 musl package",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 27194,
+    "title": "Codex CLI self-update still fails on Ubuntu 22.04: missing SHA-256 digest f",
+    "reactions": 1
+   },
+   {
+    "n": 28334,
+    "title": "Codex CLI self-update still fails in 0.139.0: missing SHA-256 digest for Li",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "app",
+   "safety-check"
+  ],
+  "rep": {
+   "n": 23959,
+   "title": "cybersecurity risk",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 23959,
+    "title": "cybersecurity risk",
+    "reactions": 1
+   },
+   {
+    "n": 27887,
+    "title": "This content was flagged for possible cybersecurity risk. If this seems wro",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 27849,
+   "title": "Codex Desktop for Windows 26.609.3341.0 exits immediately after launch",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 27849,
+    "title": "Codex Desktop for Windows 26.609.3341.0 exits immediately after launch",
+    "reactions": 0
+   },
+   {
+    "n": 27827,
+    "title": "Stable Codex Desktop 26.609.3341.0 exits immediately on Windows after   upd",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 3,
+  "top_labels": [
+   "enhancement",
+   "context",
+   "plan"
+  ],
+  "rep": {
+   "n": 18490,
+   "title": "Add a 'Compact context and implement plan' option to Plan Mode",
+   "reactions": 3
+  },
+  "members": [
+   {
+    "n": 18490,
+    "title": "Add a 'Compact context and implement plan' option to Plan Mode",
+    "reactions": 3
+   },
+   {
+    "n": 27688,
+    "title": "Plan mode: Yes, compact and implement",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "iOS",
+   "remote",
+   "enhancement"
+  ],
+  "rep": {
+   "n": 27595,
+   "title": "Support for 2+ remote connections",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 27595,
+    "title": "Support for 2+ remote connections",
+    "reactions": 0
+   },
+   {
+    "n": 23639,
+    "title": "Codex mobile remote connections break after renaming two computers on iOS",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 6,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 25178,
+   "title": "Windows Computer Use screenshot fails on Windows 10 22H2 when SetIsBorderRequired is called",
+   "reactions": 6
+  },
+  "members": [
+   {
+    "n": 25178,
+    "title": "Windows Computer Use screenshot fails on Windows 10 22H2 when SetIsBorderRe",
+    "reactions": 6
+   },
+   {
+    "n": 27556,
+    "title": "Computer Use screenshot fails on Windows 10 22H2 with SetIsBorderRequired f",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 27546,
+   "title": "Windows app 26.608.1337.0 crashes immediately after launch in windows-updater.node",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 27546,
+    "title": "Windows app 26.608.1337.0 crashes immediately after launch in windows-updat",
+    "reactions": 0
+   },
+   {
+    "n": 27327,
+    "title": "Windows desktop app crashes on launch in windows-updater.node",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 2,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "tool-calls"
+  ],
+  "rep": {
+   "n": 26030,
+   "title": "Codex not able to access WSL directly",
+   "reactions": 2
+  },
+  "members": [
+   {
+    "n": 26030,
+    "title": "Codex not able to access WSL directly",
+    "reactions": 2
+   },
+   {
+    "n": 27474,
+    "title": "Codex Windows app exec_command fails with WSL agent environment",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "tool-calls",
+   "windows-os"
+  ],
+  "rep": {
+   "n": 25380,
+   "title": "{\"error\":{\"message\":\"An assistant message with 'tool_calls' must be followed by tool messages",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 25380,
+    "title": "{\"error\":{\"message\":\"An assistant message with 'tool_calls' must be followe",
+    "reactions": 1
+   },
+   {
+    "n": 26865,
+    "title": "tool_calls without matching tool messages causes conversation to freeze",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 3,
+  "top_labels": [
+   "bug",
+   "app",
+   "computer-use"
+  ],
+  "rep": {
+   "n": 24437,
+   "title": "Intel macOS x64 26.519.41501 still missing computer-use helper for Appshots and Locked use",
+   "reactions": 3
+  },
+  "members": [
+   {
+    "n": 24437,
+    "title": "Intel macOS x64 26.519.41501 still missing computer-use helper for Appshots",
+    "reactions": 3
+   },
+   {
+    "n": 26842,
+    "title": "Intel macOS x64 26.602.40724 still missing computer-use helper for Appshots",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 2,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "sandbox"
+  ],
+  "rep": {
+   "n": 25436,
+   "title": "Windows: local runner cannot start, CreateProcessAsUserW failed: 5",
+   "reactions": 2
+  },
+  "members": [
+   {
+    "n": 25436,
+    "title": "Windows: local runner cannot start, CreateProcessAsUserW failed: 5",
+    "reactions": 2
+   },
+   {
+    "n": 26803,
+    "title": "Windows sandbox runner fails with CreateProcessAsUserW failed: 5 on Windows",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 3,
+  "top_labels": [
+   "bug",
+   "rate-limits",
+   "app"
+  ],
+  "rep": {
+   "n": 26756,
+   "title": "Weekly limits and credits completely drained without running prompts",
+   "reactions": 2
+  },
+  "members": [
+   {
+    "n": 26756,
+    "title": "Weekly limits and credits completely drained without running prompts",
+    "reactions": 2
+   },
+   {
+    "n": 26755,
+    "title": "Weekly limits and credits completely drained without running prompts\" Bad e",
+    "reactions": 1
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 26492,
+   "title": "Codex App: plugin directory and computer-use settings fail with unknown variant `vertical`",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 26492,
+    "title": "Codex App: plugin directory and computer-use settings fail with unknown var",
+    "reactions": 0
+   },
+   {
+    "n": 25418,
+    "title": "Codex App settings show \"unknown variant vertical\" in Browser and Computer ",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 3,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "sandbox"
+  ],
+  "rep": {
+   "n": 26304,
+   "title": "Windows Desktop: Computer Use fails because node_repl kernel exits with `windows sandbox failed: spawn setup refresh`",
+   "reactions": 2
+  },
+  "members": [
+   {
+    "n": 26304,
+    "title": "Windows Desktop: Computer Use fails because node_repl kernel exits with `wi",
+    "reactions": 2
+   },
+   {
+    "n": 25226,
+    "title": "Codex Desktop Windows: node_repl bridge fails with `windows sandbox failed:",
+    "reactions": 1
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 26164,
+   "title": "Windows <-> Windows ssh connection for remote codex usage",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 26164,
+    "title": "Windows <-> Windows ssh connection for remote codex usage",
+    "reactions": 1
+   },
+   {
+    "n": 26078,
+    "title": "Windows Codex App: Computer Use unavailable and /feedback command not avail",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 26029,
+   "title": "Codex App: image preview close button overlaps the Windows window close button",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 26029,
+    "title": "Codex App: image preview close button overlaps the Windows window close but",
+    "reactions": 0
+   },
+   {
+    "n": 25633,
+    "title": "[Bug] Windows image preview close button overlaps main window close button",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "auth"
+  ],
+  "rep": {
+   "n": 25616,
+   "title": "Windows Codex Canva connector OAuth callback launches Electron with invalid app path",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 25616,
+    "title": "Windows Codex Canva connector OAuth callback launches Electron with invalid",
+    "reactions": 0
+   },
+   {
+    "n": 25598,
+    "title": "Canva OAuth callback fails on Windows: codex:// deep link is treated as Ele",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 21488,
+   "title": "Progress panel overlaps right scrollbar and prevents dragging chat scroll thumb",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 21488,
+    "title": "Progress panel overlaps right scrollbar and prevents dragging chat scroll t",
+    "reactions": 1
+   },
+   {
+    "n": 25389,
+    "title": "Codex session right-side scrollbar is blocked by the upper-right output pan",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "hooks",
+   "config"
+  ],
+  "rep": {
+   "n": 22148,
+   "title": "[Bug] Deprecated codex_hooks warning appears even when [features].hooks is enabled",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 22148,
+    "title": "[Bug] Deprecated codex_hooks warning appears even when [features].hooks is ",
+    "reactions": 1
+   },
+   {
+    "n": 24781,
+    "title": "False deprecation warning: [features].codex_hooks when using [features].hoo",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 2,
+  "top_labels": [
+   "bug",
+   "rate-limits",
+   "app"
+  ],
+  "rep": {
+   "n": 23994,
+   "title": "Codex App shows usage limit reached despite remaining 5-hour and weekly quota",
+   "reactions": 2
+  },
+  "members": [
+   {
+    "n": 23994,
+    "title": "Codex App shows usage limit reached despite remaining 5-hour and weekly quo",
+    "reactions": 2
+   },
+   {
+    "n": 24445,
+    "title": "Codex Desktop shows \u201cYou're out of Codex messages\u201d despite 99% usage remain",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 3,
+  "top_labels": [
+   "bug",
+   "iOS",
+   "remote"
+  ],
+  "rep": {
+   "n": 24271,
+   "title": "iOS Codex remote project picker does not mirror Desktop Codex projects",
+   "reactions": 3
+  },
+  "members": [
+   {
+    "n": 24271,
+    "title": "iOS Codex remote project picker does not mirror Desktop Codex projects",
+    "reactions": 3
+   },
+   {
+    "n": 24270,
+    "title": "iOS Codex remote: Full access selected but new threads start with workspace",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 3,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "performance"
+  ],
+  "rep": {
+   "n": 17083,
+   "title": "(code=3221226505, signal=null). Most recent error: memory allocation of 524288 bytes failed note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace",
+   "reactions": 3
+  },
+  "members": [
+   {
+    "n": 17083,
+    "title": "(code=3221226505, signal=null). Most recent error: memory allocation of 524",
+    "reactions": 3
+   },
+   {
+    "n": 24216,
+    "title": "(code=3221226505, signal=null). Most recent error: memory allocation of 126",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 36,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "auth"
+  ],
+  "rep": {
+   "n": 23804,
+   "title": "Add figma mcp meet 400 error",
+   "reactions": 19
+  },
+  "members": [
+   {
+    "n": 23804,
+    "title": "Add figma mcp meet 400 error",
+    "reactions": 19
+   },
+   {
+    "n": 23929,
+    "title": "MCP FIGMA 400  HTTP 400 Bad Request: {\"error\":\"invalid_redirect_uri\"}",
+    "reactions": 17
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 2,
+  "top_labels": [
+   "bug",
+   "context",
+   "app"
+  ],
+  "rep": {
+   "n": 14310,
+   "title": "Codex ran out of room in the model's context window. Start a new thread or clear earlier history before retrying.",
+   "reactions": 2
+  },
+  "members": [
+   {
+    "n": 14310,
+    "title": "Codex ran out of room in the model's context window. Start a new thread or ",
+    "reactions": 2
+   },
+   {
+    "n": 23375,
+    "title": "Codex session abruptly closed with context window ran out of room error",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 17,
+  "top_labels": [
+   "bug",
+   "app",
+   "app-server"
+  ],
+  "rep": {
+   "n": 20538,
+   "title": "Desktop Preferences can get stuck showing \"unable to save\" after configVersionConflict on sequential config writes",
+   "reactions": 17
+  },
+  "members": [
+   {
+    "n": 20538,
+    "title": "Desktop Preferences can get stuck showing \"unable to save\" after configVers",
+    "reactions": 17
+   },
+   {
+    "n": 23264,
+    "title": "macOS Codex Desktop Settings show \"Unable to save\" for sandbox/approval con",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "extension"
+  ],
+  "rep": {
+   "n": 23209,
+   "title": "New chat creation fails with Invalid request: AbsolutePathBuf deserialized without a base path (existing tasks work)",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 23209,
+    "title": "New chat creation fails with Invalid request: AbsolutePathBuf deserialized ",
+    "reactions": 1
+   },
+   {
+    "n": 23213,
+    "title": "New chat creation fails with AbsolutePathBuf deserialized without a base pa",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "tool-calls",
+   "agent"
+  ],
+  "rep": {
+   "n": 16605,
+   "title": "Expected a base64-encoded data URL with an image MIME type",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 16605,
+    "title": "Expected a base64-encoded data URL with an image MIME type",
+    "reactions": 1
+   },
+   {
+    "n": 22886,
+    "title": "Bug in Windows Desktop",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "TUI",
+   "performance"
+  ],
+  "rep": {
+   "n": 22799,
+   "title": "Codex CLI startup hangs ~60s in WSL before UI due to Windows TERM_PROGRAM probe via cmd.exe",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 22799,
+    "title": "Codex CLI startup hangs ~60s in WSL before UI due to Windows TERM_PROGRAM p",
+    "reactions": 0
+   },
+   {
+    "n": 22176,
+    "title": "WSL CLI startup from `/home/...` stalls ~60s in `cmd.exe` `set TERM_PROGRAM",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "TUI"
+  ],
+  "rep": {
+   "n": 22585,
+   "title": "File paths render blue but are not clickable links",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 22585,
+    "title": "File paths render blue but are not clickable links",
+    "reactions": 0
+   },
+   {
+    "n": 15006,
+    "title": "Files links aren't clickable on windows on the codex app",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "auth",
+   "app"
+  ],
+  "rep": {
+   "n": 22175,
+   "title": "Codex Desktop dictation fails with \"No active organization found\"",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 22175,
+    "title": "Codex Desktop dictation fails with \"No active organization found\"",
+    "reactions": 0
+   },
+   {
+    "n": 21927,
+    "title": "Codex Desktop dictation fails with \"No active organization found\"",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 9,
+  "top_labels": [
+   "enhancement",
+   "app"
+  ],
+  "rep": {
+   "n": 22168,
+   "title": "Disable hover-triggered right sidebar in Codex desktop app",
+   "reactions": 5
+  },
+  "members": [
+   {
+    "n": 22168,
+    "title": "Disable hover-triggered right sidebar in Codex desktop app",
+    "reactions": 5
+   },
+   {
+    "n": 22167,
+    "title": "Disable hover-triggered right sidebar in Codex desktop app",
+    "reactions": 4
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 24,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "app"
+  ],
+  "rep": {
+   "n": 21862,
+   "title": "Chrome plugin missing from Codex Plugin Directory",
+   "reactions": 22
+  },
+  "members": [
+   {
+    "n": 21862,
+    "title": "Chrome plugin missing from Codex Plugin Directory",
+    "reactions": 22
+   },
+   {
+    "n": 22051,
+    "title": "Chrome plugin is missing from Codex Plugins on Windows even though local pl",
+    "reactions": 2
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 18,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "tool-calls"
+  ],
+  "rep": {
+   "n": 19365,
+   "title": "Windows Codex App: Browser Use unavailable because Node REPL tool is not exposed",
+   "reactions": 14
+  },
+  "members": [
+   {
+    "n": 19365,
+    "title": "Windows Codex App: Browser Use unavailable because Node REPL tool is not ex",
+    "reactions": 14
+   },
+   {
+    "n": 21618,
+    "title": "Browser Use unavailable: node_repl / JavaScript execution tool not exposed ",
+    "reactions": 4
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 7,
+  "top_labels": [
+   "bug",
+   "sandbox",
+   "browser"
+  ],
+  "rep": {
+   "n": 14368,
+   "title": "Codex macOS sandbox prevents Playwright browser tests from starting (bootstrap_check_in Permission denied (1100), listen EPERM 127.0.0.1)",
+   "reactions": 7
+  },
+  "members": [
+   {
+    "n": 14368,
+    "title": "Codex macOS sandbox prevents Playwright browser tests from starting (bootst",
+    "reactions": 7
+   },
+   {
+    "n": 21292,
+    "title": "Playwright Chromium fails in Codex Desktop macOS sandbox with MachPortRende",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "rate-limits"
+  ],
+  "rep": {
+   "n": 20786,
+   "title": "Quota exceeded. Check your plan and billing details.",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 20786,
+    "title": "Quota exceeded. Check your plan and billing details.",
+    "reactions": 0
+   },
+   {
+    "n": 17042,
+    "title": "Quota exceeded. Check your plan and billing details.",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "app-server",
+   "browser"
+  ],
+  "rep": {
+   "n": 20130,
+   "title": "Windows: browser-use IAB can initialize and list tabs, but tab.goto() fails with `failed to start codex app-server: \u7cfb\u7edf\u627e\u4e0d\u5230\u6307\u5b9a\u7684\u8def\u5f84 (os error 3)`",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 20130,
+    "title": "Windows: browser-use IAB can initialize and list tabs, but tab.goto() fails",
+    "reactions": 0
+   },
+   {
+    "n": 19519,
+    "title": "Browser Use iab backend can read tabs but tab.goto fails with nodeRepl.fetc",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 4,
+  "top_labels": [
+   "bug",
+   "app"
+  ],
+  "rep": {
+   "n": 19794,
+   "title": "A JavaScript error occurred in the main process",
+   "reactions": 4
+  },
+  "members": [
+   {
+    "n": 19794,
+    "title": "A JavaScript error occurred in the main process",
+    "reactions": 4
+   },
+   {
+    "n": 19783,
+    "title": "A JavaScript error occurred in the main process",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "auth",
+   "mcp"
+  ],
+  "rep": {
+   "n": 17340,
+   "title": "Your access token could not be refreshed because your refresh token was already used. Please log out and sign in again.",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 17340,
+    "title": "Your access token could not be refreshed because your refresh token was alr",
+    "reactions": 1
+   },
+   {
+    "n": 12755,
+    "title": "Your access token could not be refreshed because your refresh token was alr",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "sandbox"
+  ],
+  "rep": {
+   "n": 17065,
+   "title": "windows sandbox: setup refresh failed  exit code: 1",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 17065,
+    "title": "windows sandbox: setup refresh failed  exit code: 1",
+    "reactions": 0
+   },
+   {
+    "n": 16643,
+    "title": "Windows sandbox instability: apply_patch intermittently fails with \"windows",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 1,
+  "top_labels": [
+   "bug",
+   "tool-calls",
+   "TUI"
+  ],
+  "rep": {
+   "n": 15596,
+   "title": "Codex App repeatedly fails with \"timeout waiting for child process to exit\" after update",
+   "reactions": 1
+  },
+  "members": [
+   {
+    "n": 15596,
+    "title": "Codex App repeatedly fails with \"timeout waiting for child process to exit\"",
+    "reactions": 1
+   },
+   {
+    "n": 16491,
+    "title": "`codex resume` repeatedly fails with \"Timeout waiting for child process to ",
+    "reactions": 0
+   }
+  ]
+ },
+ {
+  "size": 2,
+  "reactions_sum": 0,
+  "top_labels": [
+   "bug",
+   "windows-os",
+   "extension"
+  ],
+  "rep": {
+   "n": 16337,
+   "title": "Windows: spawn ENOENT in app-server.mjs \u2014 missing shell:true for .cmd shims",
+   "reactions": 0
+  },
+  "members": [
+   {
+    "n": 16337,
+    "title": "Windows: spawn ENOENT in app-server.mjs \u2014 missing shell:true for .cmd shims",
+    "reactions": 0
+   },
+   {
+    "n": 16296,
+    "title": "Windows: app-server.mjs spawn('codex') fails with ENOENT due to missing she",
+    "reactions": 0
+   }
+  ]
+ }
+]

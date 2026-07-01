@@ -1,0 +1,21 @@
+.fkst/
+fkst.env
+target/
+__pycache__/
+*.pyc
+
+# --- learning model (codex-learn) state discipline ---
+# COMMITTED  : the DISTILLED learning artifacts under data/learning/
+#              (rubric_history/, relearn_log.jsonl, engagement_styleguide.md,
+#              pr_styleguide.md) + data/area_rubric.json. codex-learn/relearn is
+#              the ONLY writer of these banks; they are tracked + reviewable.
+# GITIGNORED : the RAW durable runtime `outcomes` + engine state. They live under
+#              .fkst/ (ignored above: .fkst/durable + .fkst/runtime are scratch/state).
+# Guard: a raw `outcomes*.jsonl` must NEVER be committed even if a run drops one
+# under data/ ; data/learning's distilled banks are NOT matched, so they stay tracked.
+data/**/outcomes*.jsonl
+.fkst/durable/
+.fkst/runtime/
+
+# Session build-state note (local only, not part of the product)
+RESUME.md

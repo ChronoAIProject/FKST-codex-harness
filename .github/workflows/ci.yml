@@ -1,0 +1,23 @@
+# TODO(CI): this is the as-emitted single-root scaffold workflow. It triggers on the
+# `dev` branch only and runs `scripts/run.sh` (usage/no-op) — it does NOT yet drive the
+# multi-package layout. A real CI must build fkst-substrate at .fkst-substrate-ref,
+# inject BIN, and run `scripts/run.sh test`. Left as a documented placeholder for now.
+name: ci
+
+on:
+  push:
+    branches: [dev]
+  pull_request:
+    branches: [dev]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run package gates
+        run: ./scripts/run.sh

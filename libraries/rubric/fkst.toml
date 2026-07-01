@@ -1,0 +1,22 @@
+kind = "library"
+name = "rubric"
+
+[code]
+root = "."
+
+[lib_deps]
+libraries = []
+
+[dependency_constraints]
+allowed_lib_deps = []
+
+[library]
+name = "rubric"
+stable_id = "fkst.library.rubric"
+version = "workspace"
+
+[exports]
+public = ["rubric.*"]
+
+[visibility]
+public = false

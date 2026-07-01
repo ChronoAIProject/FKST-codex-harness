@@ -1,0 +1,22 @@
+kind = "library"
+name = "repo_map"
+
+[code]
+root = "."
+
+[lib_deps]
+libraries = []
+
+[dependency_constraints]
+allowed_lib_deps = []
+
+[library]
+name = "repo_map"
+stable_id = "fkst.library.repo_map"
+version = "workspace"
+
+[exports]
+public = ["repo_map.*"]
+
+[visibility]
+public = false
