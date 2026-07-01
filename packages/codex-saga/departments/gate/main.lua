@@ -42,16 +42,31 @@ local function act(event)
   local entity = payload.source_ref
   local dedup_key = payload.dedup_key
 
+  -- Durably record a gate REFUSAL so the deliberation funnel (learning-model §7) is
+  -- retrievable even in dry-run. The append is UNCONDITIONAL + local (no foreign write);
+  -- the disposition is inert to codex-learn's fold (core.deliberation). `delib` carries
+  -- the per-angle verdicts on the consensus path (nil for the earlier policy gates).
+  local function refuse(reason, delib)
+    delib = delib or {}
+    delib.reason = reason
+    delib.source_ref = entity
+    delib.picked_score = payload.score
+    delib.area_labels = payload.labels
+    core.record_deliberation(dedup_key, delib)
+  end
+
   -- gate0: security/safety issues are routed privately and NEVER posted publicly.
   if has_security_label(payload.labels) then
     log.warn("codex-saga/gate gate0 drop: " .. t("codex-saga.gate.refuse_security"))
     log.info("codex-saga/gate: would route security report privately to security@openai.com")
+    refuse("security")
     return nil
   end
 
   -- Invitation-precondition policy must be in place (the no-uninvited-PR safety).
   if core.read_env("FKST_PROPOSE_REQUIRE_INVITE") == "0" then
     log.warn("codex-saga/gate drop: " .. t("codex-saga.gate.refuse_invite_policy"))
+    refuse("invite_policy")
     return nil
   end
 
@@ -59,6 +74,7 @@ local function act(event)
   if core.read_env("FKST_PROPOSE_DISCLOSE_AI") == "0"
     or not core.is_nonempty_string(t("codex-saga.engage.disclose_ai")) then
     log.warn("codex-saga/gate drop: " .. t("codex-saga.gate.refuse_disclosure"))
+    refuse("disclosure")
     return nil
   end
 
@@ -67,6 +83,7 @@ local function act(event)
   local count = core.engagement_count()
   if count == nil or count >= core.daily_cap() then
     log.warn("codex-saga/gate drop: " .. t("codex-saga.gate.refuse_volume_cap"))
+    refuse("volume_cap")
     return nil
   end
 
@@ -86,9 +103,20 @@ local function act(event)
     end,
     subject = proposal,
   })
+  -- Surface the per-angle deliberation the advocate weighed (align/blast/dissent) as a
+  -- small scalar map + a judgment count - retrievable on both the refuse and pass paths.
+  local angle_results = (type(verdict.consensus) == "table" and verdict.consensus.angle_results) or nil
+  local consensus_angles = core.zip_angles(angle_results, verdict.dissent)
+  local deliberation_count = core.deliberation_count(angle_results, verdict.dissent)
   if verdict.verdict ~= "pass" then
     log.warn("codex-saga/gate drop: " .. t("codex-saga.gate.refuse_consensus")
       .. " (advocate: " .. tostring(verdict.reason) .. ")")
+    refuse("consensus", {
+      advocate_verdict = verdict.verdict,
+      advocate_reason = verdict.reason,
+      consensus_angles = consensus_angles,
+      deliberation_count = deliberation_count,
+    })
     return nil
   end
 
@@ -99,9 +127,12 @@ local function act(event)
     score = payload.score,
     labels = payload.labels,
     root_cause = payload.root_cause,
-    -- the advocate verdict per attempt (learning-model §5), threaded to track.
+    -- the advocate verdict + the per-angle deliberation per attempt (learning-model
+    -- §5/§7), threaded to track so a PASS carries its deliberation to the durable record.
     advocate_verdict = verdict.verdict,
     advocate_reason = verdict.reason,
+    consensus_angles = consensus_angles,
+    deliberation_count = deliberation_count,
   }
   core.merge_learning(raised, payload)
   raise("codex_cleared", raised)

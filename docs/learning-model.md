@@ -94,13 +94,23 @@ Per attempt, recorded as program-produced durable state (never hand-edited):
 
 ```
 { source_ref, picked_score, exemplars_used[],
-  engagement_reaction: none|reply|positive|invited,
-  ci: pass|fail, review_comment_themes[], disposition: merged|closed|ignored,
-  advocate_verdict: pass|refuted, advocate_reason }
+  engagement_reaction: none|reply|positive|invited|refused,
+  ci: pass|fail, review_comment_themes[],
+  disposition: merged|closed|ignored | refused_consensus|refused_volume_cap|refused_policy|refused_security,
+  advocate_verdict: pass|refuted, advocate_reason,
+  consensus_angles: { alignment, blast_radius, devils-advocate }, deliberation_count }
 ```
 
 `exemplars_used` enables credit assignment (which exemplars led to good outcomes →
 rank them up). `advocate_verdict` vs `disposition` drives advocate calibration.
+
+**Deliberation capture (§7):** the gate records every refusal here too, via
+`core.deliberation` — the per-angle consensus/dissent verdicts (`consensus_angles`), the
+judgment count (`deliberation_count`), and the refusal reason. The append is UNCONDITIONAL
+(dry-run-safe) so the "N deliberated · advocate refused M" funnel is retrievable without a
+GitHub write. A `refused_*` disposition is **outside** the resolved set (`merged|closed|
+ignored`), so `is_resolved_outcome` skips it: a refusal is retrievable but never (mis)counted
+as a win/loss — a refused pick has no real-world disposition to score against.
 
 ---
 

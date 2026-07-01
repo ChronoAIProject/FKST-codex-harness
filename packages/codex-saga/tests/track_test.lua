@@ -19,6 +19,8 @@ return {
       exemplars_used = { "openai/codex#178", "openai/codex#1" },
       advocate_verdict = "pass",
       advocate_reason = "approved",
+      consensus_angles = { alignment = "approve", blast_radius = "approve", ["devils-advocate"] = "dissent" },
+      deliberation_count = 3,
     })
     tk.eq(outcome.source_ref.ref, "openai/codex#issues/1234")
     tk.eq(outcome.picked_score, 0.73)
@@ -33,6 +35,9 @@ return {
     tk.eq(outcome.disposition, "proposed")
     tk.eq(outcome.advocate_verdict, "pass")
     tk.eq(outcome.advocate_reason, "approved")
+    -- deliberation signals threaded gate -> track survive into the §5 record.
+    tk.eq(outcome.consensus_angles.blast_radius, "approve")
+    tk.eq(outcome.deliberation_count, 3)
   end,
 
   -- picked_score falls back to `score`; type/area_labels default when no labels.
@@ -74,10 +79,20 @@ return {
     local body = core.render_outcome(core.build_outcome({
       source_ref = candidate_ref(), picked_score = 0.73,
       exemplars_used = { "openai/codex#178" }, advocate_verdict = "pass",
+      consensus_angles = { alignment = "approve", blast_radius = "reject" }, deliberation_count = 3,
     }))
     tk.is_true(body:find("source_ref: openai/codex#issues/1234", 1, true) ~= nil)
     tk.is_true(body:find("exemplars_used: openai/codex#178", 1, true) ~= nil)
     tk.is_true(body:find("advocate_verdict: pass", 1, true) ~= nil)
+    -- the deliberation is a logged string within the control-issue comment (sorted, stable).
+    tk.is_true(body:find("consensus_angles: alignment=approve, blast_radius=reject", 1, true) ~= nil)
+    tk.is_true(body:find("deliberation_count: 3", 1, true) ~= nil)
+  end,
+
+  -- render_consensus_angles degrades cleanly: nil / empty map -> "(none)".
+  test_render_consensus_angles_handles_absent = function()
+    tk.eq(core.render_consensus_angles(nil), "(none)")
+    tk.eq(core.render_consensus_angles({}), "(none)")
   end,
 
   -- record_outcome is dry-run by default: it records the durable intent with NO

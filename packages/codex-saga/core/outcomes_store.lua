@@ -50,6 +50,25 @@ function S.install(M)
     return "[" .. table.concat(parts, ",") .. "]"
   end
 
+  -- Encode a small string->string map (the per-angle deliberation verdicts) with keys
+  -- SORTED so the JSONL line is deterministic (stable tests + stable dedup). nil -> null,
+  -- empty table -> {}. Values are coerced to strings (the angle verdicts are scalars).
+  local function encode_string_map(map)
+    if type(map) ~= "table" then
+      return "null"
+    end
+    local keys = {}
+    for key in pairs(map) do
+      keys[#keys + 1] = tostring(key)
+    end
+    table.sort(keys)
+    local parts = {}
+    for _, key in ipairs(keys) do
+      table.insert(parts, escape_json_string(key) .. ":" .. escape_json_string(map[key]))
+    end
+    return "{" .. table.concat(parts, ",") .. "}"
+  end
+
   local function encode_source_ref(source_ref)
     if type(source_ref) ~= "table" then
       return "null"
@@ -94,6 +113,11 @@ function S.install(M)
       '"disposition":' .. encode_string_or_null(record.disposition),
       '"advocate_verdict":' .. encode_string_or_null(record.advocate_verdict),
       '"advocate_reason":' .. encode_string_or_null(record.advocate_reason),
+      -- Deliberation signals (learning-model §7): the per-angle consensus + dissent
+      -- verdicts and the count of independent judgments the gate weighed. APPENDED at
+      -- the end so the addition is additive for codex-learn's json.decode reader.
+      '"consensus_angles":' .. encode_string_map(record.consensus_angles),
+      '"deliberation_count":' .. encode_number_or_null(record.deliberation_count),
     }
     return "{" .. table.concat(fields, ",") .. "}"
   end
@@ -111,8 +135,9 @@ function S.install(M)
   -- APPEND one §5 record to the durable outcomes JSONL. UNCONDITIONAL - never gated by
   -- the GitHub outcome_marker. Serialized across pipeline processes by with_lock so
   -- concurrent appends don't clobber (read-modify-write; file.write has no append mode).
-  function M.append_outcome(dedup_key, outcome)
+  function M.append_outcome(dedup_key, outcome, opts)
     outcome = outcome or {}
+    opts = opts or {}
     local record = {
       source_ref = outcome.source_ref,
       dedup_key = dedup_key,
@@ -126,9 +151,11 @@ function S.install(M)
       disposition = outcome.disposition,
       advocate_verdict = outcome.advocate_verdict,
       advocate_reason = outcome.advocate_reason,
+      consensus_angles = outcome.consensus_angles,
+      deliberation_count = outcome.deliberation_count,
     }
     local line = M.encode_outcome_json(record)
-    local path = M.outcomes_path()
+    local path = opts.path or M.outcomes_path()
     with_lock("codex-saga/outcomes-append", function()
       local existing = ""
       if file.exists(path) then

@@ -202,8 +202,11 @@ return {
     tk.is_true(raises_of(result, "codex_cleared") >= 1)
   end,
 
-  -- consensus refusal drops with a WHY (no clear).
+  -- consensus refusal drops with a WHY (no clear) AND durably records the advocate
+  -- refusal + per-angle verdicts to the outcomes channel (retrievable in dry-run; NO
+  -- foreign write). The record's disposition is inert to codex-learn's fold.
   test_gate_consensus_refusal_drops = function()
+    local delib_path = (os.getenv("FKST_RUNTIME_ROOT") or ".") .. "/saga-gate-consensus-refuse.jsonl"
     tk.mock_command("gh issue list", { stdout = "[]" })
     tk.mock_command("codex exec", { stdout = "VERDICT: reject" })
     tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
@@ -216,9 +219,16 @@ return {
         root_cause = "src/exec/mod.rs:88",
         labels = { "bug" },
       },
-    })
+    }, { env = { FKST_LEARNING_OUTCOMES_PATH = delib_path } })
     tk.eq(result.exit_code, 0)
     tk.eq(raises_of(result, "codex_cleared"), 0)
+    -- the refusal is now retrievable from the durable channel: the "best stat" survives.
+    local latest = core.latest_outcome_by_dedup(core.read_outcomes({ path = delib_path }))
+    local rec = latest["codex-triage:candidate:openai/codex#1234"]
+    tk.eq(rec.disposition, "refused_consensus")
+    tk.eq(rec.consensus_angles.alignment, "reject") -- angle 1 mock: reject
+    tk.eq(rec.consensus_angles.blast_radius, "approve") -- angle 2 mock: approve
+    tk.eq(rec.deliberation_count, 3) -- 2 consensus angles + the dissent angle
   end,
 
   -- FIX 3: the volume cap is DURABLE and MARKER-TRUTH. With cap-many bot-authored,

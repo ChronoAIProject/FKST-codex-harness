@@ -16,7 +16,7 @@ function S.install(M)
   -- Carried as refs/scalars per the payload-discipline (NEVER diffs or bodies).
   -- `labels` is threaded too so the terminal recorder can derive the §5 area_labels +
   -- type for the rubric re-fit fold (codex-learn), not just calibration.
-  local LEARNING_KEYS = { "picked_score", "exemplars_used", "advocate_verdict", "advocate_reason", "engagement_exemplars", "labels" }
+  local LEARNING_KEYS = { "picked_score", "exemplars_used", "advocate_verdict", "advocate_reason", "engagement_exemplars", "labels", "consensus_angles", "deliberation_count" }
 
   function M.learning_keys()
     return LEARNING_KEYS
@@ -69,7 +69,33 @@ function S.install(M)
       disposition = payload.disposition or "proposed",
       advocate_verdict = payload.advocate_verdict or "unknown",
       advocate_reason = payload.advocate_reason,
+      -- Deliberation signals threaded gate -> track (learning-model §7): the per-angle
+      -- verdict map + the count of judgments the gate weighed, so a PASS carries its
+      -- deliberation into the durable record + control-issue comment.
+      consensus_angles = payload.consensus_angles,
+      deliberation_count = payload.deliberation_count,
     }
+  end
+
+  -- Render the per-angle deliberation map to a stable "angle=verdict" string (keys
+  -- SORTED so the control-issue comment line is deterministic). Empty/nil -> "(none)".
+  function M.render_consensus_angles(angles)
+    if type(angles) ~= "table" then
+      return "(none)"
+    end
+    local keys = {}
+    for key in pairs(angles) do
+      keys[#keys + 1] = tostring(key)
+    end
+    table.sort(keys)
+    if #keys == 0 then
+      return "(none)"
+    end
+    local parts = {}
+    for _, key in ipairs(keys) do
+      parts[#parts + 1] = key .. "=" .. tostring(angles[key])
+    end
+    return table.concat(parts, ", ")
   end
 
   -- Render the outcome record to a stable text block for the control-issue comment.
@@ -95,6 +121,8 @@ function S.install(M)
       "disposition: " .. tostring(outcome.disposition),
       "advocate_verdict: " .. tostring(outcome.advocate_verdict),
       "advocate_reason: " .. tostring(outcome.advocate_reason or ""),
+      "consensus_angles: " .. M.render_consensus_angles(outcome.consensus_angles),
+      "deliberation_count: " .. tostring(outcome.deliberation_count or 0),
     }
     return table.concat(lines, "\n")
   end

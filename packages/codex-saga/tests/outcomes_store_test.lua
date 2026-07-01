@@ -60,6 +60,9 @@ return {
       disposition = "proposed",
       advocate_verdict = "pass",
       advocate_reason = "approved",
+      -- deliberation signals (learning-model §7): per-angle map + judgment count.
+      consensus_angles = { alignment = "approve", blast_radius = "reject", ["devils-advocate"] = "dissent" },
+      deliberation_count = 3,
     })
     local decoded = json.decode(line)
     tk.eq(decoded.dedup_key, DEDUP)
@@ -70,6 +73,21 @@ return {
     tk.eq(decoded.area_labels[1], "exec")
     tk.eq(decoded.type, "bug")
     tk.eq(decoded.exemplars_used[1], "openai/codex#178")
+    -- the new deliberation fields round-trip through json.decode (additive for codex-learn).
+    tk.eq(decoded.consensus_angles.alignment, "approve")
+    tk.eq(decoded.consensus_angles.blast_radius, "reject")
+    tk.eq(decoded.deliberation_count, 3)
+  end,
+
+  -- The per-angle map encodes with SORTED keys, so the durable line is deterministic;
+  -- a nil map encodes to null (absent deliberation), an empty map to {}.
+  test_consensus_angles_encode_is_deterministic = function()
+    local a = core.encode_outcome_json({ dedup_key = "d", consensus_angles = { blast_radius = "reject", alignment = "approve" } })
+    local b = core.encode_outcome_json({ dedup_key = "d", consensus_angles = { alignment = "approve", blast_radius = "reject" } })
+    tk.eq(a, b) -- key order does not affect the encoded line
+    tk.is_true(a:find('"consensus_angles":{"alignment":"approve","blast_radius":"reject"}', 1, true) ~= nil)
+    -- a nil map encodes to JSON null (not {}), so it decodes to a non-table (absent map).
+    tk.is_true(core.encode_outcome_json({ dedup_key = "d" }):find('"consensus_angles":null', 1, true) ~= nil)
   end,
 
   -- The latest-wins-by-dedup_key reader (the SAME view codex-learn takes) returns the
