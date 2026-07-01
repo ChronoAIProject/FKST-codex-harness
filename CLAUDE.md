@@ -85,4 +85,5 @@ Both packages follow the package-repo contract: `core.lua` (pure shared logic),
 `docs/fkst-codex-harness-architecture.md` (spec) · `docs/repo-architecture.md`
 (3-repo charter) · `docs/codex-contribution-playbook.md` · `docs/METHODOLOGY.md`
 (scoring) · `docs/pilot-results.md` · `docs/dependency-strategy.md` (R2 vendoring) ·
-`docs/fork-sync-runbook.md` (gated fork mirror sync).
+`docs/fork-sync-runbook.md` (gated fork mirror sync) · `docs/stream-showcase.md`
+(YT-Live showcase: C→B→A run-of-show, wireframes, live-vs-recorded split).

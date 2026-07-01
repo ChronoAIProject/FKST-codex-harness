@@ -18,9 +18,17 @@
 # PHASE2_ADDENDUM / D2 as a documented generated-template update, NOT a rewrite).
 # See docs/dependency-strategy.md.
 #
-#   scripts/run.sh check    hermetic repo guards (check_repo.py) + `deps`
+#   scripts/run.sh check    hermetic repo guards (check_repo.py) + KB validation
+#                           (check_kb.py, Phase 6) + `deps`
 #   scripts/run.sh test     check + self-test + per-package conformance/test +
 #                           composed conformance + G5 report-json coverage
+#   scripts/run.sh supervise [pkg]
+#                           run the FKST event loop over the packages/ graph via
+#                           the engine `supervise` subcommand. DRY-RUN unless the
+#                           host sets FKST_GITHUB_WRITE=1. Uses STABLE state roots
+#                           (.fkst/durable = redb, survives restarts; .fkst/runtime
+#                           scratch); go-live config from .fkst/env. [pkg] scopes to
+#                           one composed graph (pkg + [event_deps]); default = all.
 #
 # fkst-framework BIN resolution order (priority):
 #   $BIN > repo .fkst/env `BIN=` > repo fkst.env `BIN=` > PATH (fkst-framework) >
@@ -106,6 +114,11 @@ collect_composed_package() {
 cmd_check() {
   local fail=0
   python3 -B "$ROOT/scripts/check_repo.py" || fail=1
+  # Phase 6, minimal addition: validate the data/ knowledge bases (committed
+  # corpora + optional generated learning banks) via check_kb.py, alongside the
+  # as-emitted check_repo.py repo guards. No BIN needed (read-only over data/);
+  # see docs/KNOWLEDGE-BASE.md. Durable/gitignored staging is never touched.
+  python3 -B "$ROOT/scripts/check_kb.py" || fail=1
   if [ "$fail" -eq 0 ]; then
     resolve_bin || return 1
     "$BIN" deps --project-root "$ROOT" || fail=1
@@ -239,12 +252,65 @@ cmd_test() {
   echo "OK: $ran package(s)"
 }
 
-usage() { sed -n '17,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; }
+# ---------------------------------------------------------------------------
+# supervise - the real FKST event loop (README go-live). Drives the packages/
+# graph via the engine `supervise` subcommand. DRY-RUN unless the host opted into
+# real writes (FKST_GITHUB_WRITE=1, via .fkst/env or the environment). Uses STABLE
+# state roots: .fkst/durable is the redb saga truth and MUST persist across restarts
+# (never the hermetic scratch that `test` clears). Optional [pkg] scopes to one
+# composed graph (pkg + its [event_deps]); default supervises every package.
+# ---------------------------------------------------------------------------
+cmd_supervise() {
+  resolve_bin || exit 1
+
+  # Go-live config (two-plane targets, gate policy, device bot identity, and the
+  # optional FKST_GITHUB_WRITE opt-in) from .fkst/env when present; a value already
+  # in the environment still wins (set -a exports every assignment sourced here).
+  if [ -f "$ROOT/.fkst/env" ]; then set -a; . "$ROOT/.fkst/env"; set +a; fi
+
+  # Stable state roots. Durable (redb) MUST survive restarts; honor a pre-set root,
+  # else the repo default. This is deliberately NOT the mktemp scratch `test` uses.
+  export FKST_RUNTIME_ROOT="${FKST_RUNTIME_ROOT:-$ROOT/.fkst/runtime}"
+  export FKST_DURABLE_ROOT="${FKST_DURABLE_ROOT:-$ROOT/.fkst/durable}"
+  mkdir -p "$FKST_RUNTIME_ROOT" "$FKST_DURABLE_ROOT"
+
+  # Package roots: a scoped composed graph if [pkg] is given, else every package.
+  local args=() names=() name pkg
+  if [ -n "${1:-}" ]; then
+    COMPOSED_SEEN=(); collect_composed_package "$1" || exit 1
+    names=("${COMPOSED_SEEN[@]}")
+  else
+    for pkg in "$PACKAGES_ROOT"/*/; do [ -d "$pkg" ] || continue; names+=("$(basename "${pkg%/}")"); done
+  fi
+  for name in "${names[@]}"; do args+=(--package-root "$(package_root_for_name "$name")"); done
+
+  local mode="dry-run (no external writes)"
+  [ "${FKST_GITHUB_WRITE:-}" = "1" ] && mode="REAL - OUTWARD WRITES ENABLED"
+  echo "=== supervise ==="
+  echo "  project-root : $ROOT"
+  echo "  packages     : ${names[*]}"
+  echo "  durable(redb): $FKST_DURABLE_ROOT"
+  echo "  runtime      : $FKST_RUNTIME_ROOT"
+  echo "  contrib      : ${FKST_CONTRIB_TARGET:-openai/codex} (read + gated propose)"
+  echo "  write mode   : $mode"
+  [ "${FKST_GITHUB_WRITE:-}" = "1" ] && echo "  WARNING: gate/engage/open_pr may write to GitHub this run."
+  exec "$BIN" supervise --project-root "$ROOT" "${args[@]}" --framework-bin "$BIN"
+}
+
+usage() {
+  cat <<'EOF'
+scripts/run.sh check              repo guards (check_repo.py) + KB validation (check_kb.py) + engine deps
+scripts/run.sh test               check + self-test + per-package conformance/test + composed conformance + G5 coverage
+scripts/run.sh supervise [pkg]    run the FKST event loop over packages/ (DRY-RUN unless FKST_GITHUB_WRITE=1);
+                                  stable .fkst/durable (redb) + .fkst/runtime; config from .fkst/env; [pkg] scopes one composed graph
+EOF
+}
 
 main() {
   case "${1:-}" in
     check) shift; cmd_check "$@" ;;
     test) shift; cmd_test "$@" ;;
+    supervise) shift; cmd_supervise "$@" ;;
     -h|--help|help|"") usage ;;
     *) echo "unknown subcommand: $1" >&2; usage; exit 1 ;;
   esac

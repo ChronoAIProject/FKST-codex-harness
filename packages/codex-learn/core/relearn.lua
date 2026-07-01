@@ -217,7 +217,12 @@ function S.install(M)
     local pr_style = M.induce_pr_style(augmented.pr_style, resolved_outcomes)
     local calibration = M.calibrate_advocate(outcomes, { prior_strictness = input.prior_strictness })
 
-    local accepted = selection_model.accepted
+    -- Accept ONLY when the seed model is separable AND this cycle actually folded fresh
+    -- resolved outcomes (fold_counts.selection > 0). Without this guard a ZERO-outcome tick
+    -- re-fits on the already-separable SEED corpus, passes AUC>=0.70 + monotonic, and
+    -- republishes - overwriting the curated committed rubric with no new learning signal
+    -- (the observed data-loss: a dry-run/empty tick gutted data/area_rubric.json).
+    local accepted = selection_model.accepted and (fold_counts.selection > 0)
     local candidate_rubric = M.candidate_rubric(input.prior_rubric, selection_model, calibration, ts)
 
     local log_row = {

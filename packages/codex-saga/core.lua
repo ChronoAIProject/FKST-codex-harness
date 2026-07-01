@@ -23,6 +23,8 @@
 --                       learning-field carry helper
 --   core/outcomes_store.lua durable APPEND-ONLY outcomes JSONL channel codex-learn
 --                       reads (path resolution + §5 JSON encoder + reader)
+--   core/deliberation.lua durable capture of the gate's per-angle/dissent verdicts +
+--                       refusal records + funnel stats (retrievable in dry-run)
 --   core/outcome.lua    READ-ONLY closing-PR outcome re-derivation (closed feedback)
 --   core/saga_table.lua restart_transition_table + saga_conformance_errors
 local M = {}
@@ -141,6 +143,7 @@ require("core.implement").install(M)
 require("core.engagement").install(M)
 require("core.track").install(M)
 require("core.outcomes_store").install(M)
+require("core.deliberation").install(M)
 require("core.outcome").install(M)
 require("core.saga_table").install(M)
 

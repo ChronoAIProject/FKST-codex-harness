@@ -1,0 +1,2 @@
+{"number":16205,"title":"CLI panics when launched from a git worktree dir","labels":["bug","exec"],"reactions":12,"updated_at":"2026-06-30T00:00:00Z","source_ref":{"kind":"external","ref":"openai/codex#issues/16205"}}
+{"number":6020,"title":"MCP client failed to start: handshake failed","labels":["mcp","bug"],"reactions":36,"updated_at":"2026-06-29T00:00:00Z","source_ref":{"kind":"external","ref":"openai/codex#issues/6020"}}

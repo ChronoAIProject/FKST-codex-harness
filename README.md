@@ -16,7 +16,7 @@ It is a **self-hosting FKST Lua package repo**: it owns its packages and runs it
 
 | Package | Role |
 |---|---|
-| **`codex-triage`** | Issue **discovery + scoring** — reads `openai/codex` open issues, scores/dedups via a rubric derived from *fixed-by-linked-PR* wins (`libraries/rubric`), raises high-value candidates. |
+| **`codex-triage`** | Issue **discovery + scoring** — scores/dedups the `openai/codex` open-issue set via a rubric derived from *fixed-by-linked-PR* wins (`libraries/rubric`) and raises the **top-N** high-value candidates. Reads a **durable issue mirror** refreshed out-of-band (`scripts/reconcile_issues.py`), never a slow in-tick poll; fails closed without a fresh mirror. |
 | **`codex-saga`** | The **saga**: diagnose → implement → dossier → gate → engage → invite-watch → open-pr → track → outcome-watch. Gated, invitation-only, dry-run. |
 | **`codex-learn`** | **Scheduled self-improvement** — folds real outcomes back into the rubric + styleguides on a regular cadence (AUC≥0.70 + monotonic accept gate; versioned `rubric_history` + `relearn_log`). |
 
@@ -35,9 +35,9 @@ See `docs/ARCHITECTURE.md` §3 for the full table.
 
 ```sh
 # 1. build the engine (sibling checkout)
-cargo build -p fkst-framework --manifest-path ../fkst-substrate/Cargo.toml
+cargo build -p fkst-framework --manifest-path ../FKST-substrate/Cargo.toml
 # 2. point the harness at it + run the gates
-export BIN=../fkst-substrate/target/debug/fkst-framework
+export BIN=../FKST-substrate/target/debug/fkst-framework
 scripts/run.sh check     # repo guards + dependency resolution
 scripts/run.sh test      # self-test + per-package conformance + tests + composed conformance
 ```
@@ -47,8 +47,13 @@ scripts/run.sh test      # self-test + per-package conformance + tests + compose
 Ships dry-run. To run for real:
 1. `cp env.example .fkst/env` and fill in targets, `BIN`, `FKST_FORK_LOCAL_PATH`, gate policy, device bot identity (see `env.example` / `docs/ARCHITECTURE.md` §7).
 2. Authenticate `gh` as the device bot (`repo` scope).
-3. Set `FKST_GITHUB_WRITE=1` (otherwise all outward actions stay dry-run).
-4. `scripts/run.sh supervise <package>`.
+3. **Build the issue mirror:** `python3 scripts/reconcile_issues.py` (resumable full pull →
+   `$FKST_DURABLE_ROOT/codex-issue-mirror/`, validate-before-swap) and schedule it every N days
+   (cron). `codex-triage` reads this mirror and **fails closed** without a fresh one — it never
+   runs the slow full poll inside the tick. Knobs: `FKST_TRIAGE_MAX_CANDIDATES` (top-N, default 5),
+   `FKST_TRIAGE_MIRROR_MAX_AGE` (staleness budget, default 2d).
+4. Set `FKST_GITHUB_WRITE=1` (otherwise all outward actions stay dry-run).
+5. `scripts/run.sh supervise <package>`.
 
 **Safety:** invitation-only PRs, gate0 security route-out, ≤3/day volume cap, AI-disclosure
 on every public post — all enforced in `codex-saga/gate`. See `docs/codex-contribution-playbook.md`.

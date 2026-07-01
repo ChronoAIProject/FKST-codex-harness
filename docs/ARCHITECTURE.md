@@ -31,6 +31,19 @@ _As of 2026-07-01. Authoritative design specs: `fkst-codex-harness-architecture.
   the security/Tier-D hard-drops and the ATTEMPT gate, dedups clusters in the correct
   order (**score → bin → ATTEMPT → dedup**), and raises `codex_candidate`
   `{source_ref, dedup_key, schema, score}` for cluster representatives that bin ATTEMPT.
+  Discovery source precedence: injected `payload.issues` → the durable **issue mirror**
+  → **fail-closed** (raise nothing + log; never an in-tick live pull). A top-N cap
+  (`FKST_TRIAGE_MAX_CANDIDATES`, default 5) bounds the downstream diagnose fan-out.
+- **Issue mirror (out-of-band reconcile).** The full paginated open-issue poll is NOT
+  run inside the 30s-stall tick — at `openai/codex` scale (~8k issues, ~126s) that
+  times out and starves discovery. `scripts/reconcile_issues.py` (an operational
+  producer, run on an N-day cadence) does the resumable page-by-page pull with
+  checkpoint/retry/**validate-before-swap** and atomically writes the compact mirror
+  `{source_ref, score-inputs, labels, reactions, updated_at}` (NEVER bodies) to
+  `$FKST_DURABLE_ROOT/codex-issue-mirror/` (gitignored, never `data/`). It owns all
+  pagination/watermark state; `codex-triage` stays a `stateless_adapter` that only
+  reads the mirror + freshness stamp. (No `stateful_adapter` class exists, and a mirror
+  is not a saga — so this is a script, not a package.) A stale mirror fails closed.
 - This is **issue discovery grounded in successful linked-PR issues**: the rubric is
   derived from PR-linked wins vs `not_planned` losses, keyed on *fixed-by-linked-PR*,
   never `state_reason=completed`.
