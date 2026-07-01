@@ -1,3 +1,9 @@
+<div align="center">
+
+[![English](https://img.shields.io/badge/English-1f6feb?style=for-the-badge)](README.md)&nbsp;[![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-8b949e?style=for-the-badge)](README.zh-CN.md)
+
+</div>
+
 # fkst-codex-harness
 
 An autonomous, locally-run harness that finds high-value **`openai/codex`** issues,
@@ -60,10 +66,10 @@ on every public post — all enforced in `codex-saga/gate`. See `docs/codex-cont
 
 ## Docs
 
-`docs/ARCHITECTURE.md` (structure + wiring) · `docs/fkst-codex-harness-architecture.md`
-(spec) · `docs/learning-model.md` (self-learning) · `docs/METHODOLOGY.md` (scorer +
-calibration) · `docs/codex-contribution-playbook.md` (what wins) ·
-`docs/dependency-strategy.md` · `docs/fork-sync-runbook.md`.
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) (structure + wiring) · [`docs/fkst-codex-harness-architecture.md`](docs/fkst-codex-harness-architecture.md)
+(spec) · [`docs/learning-model.md`](docs/learning-model.md) (self-learning) · [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) (scorer +
+calibration) · [`docs/codex-contribution-playbook.md`](docs/codex-contribution-playbook.md) (what wins) ·
+[`docs/dependency-strategy.md`](docs/dependency-strategy.md) · [`docs/fork-sync-runbook.md`](docs/fork-sync-runbook.md).
 
 ## License
 
