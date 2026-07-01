@@ -1,3 +1,9 @@
+<div align="center">
+
+[![English](https://img.shields.io/badge/English-1f6feb?style=for-the-badge)](dependency-strategy.md)&nbsp;[![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-8b949e?style=for-the-badge)](dependency-strategy.zh-CN.md)
+
+</div>
+
 # Dependency strategy (R2): VENDORED `workflow` library
 
 *Decided empirically by Task C, 2026-06-30. Authoritative spec §8; addendum R2.*
