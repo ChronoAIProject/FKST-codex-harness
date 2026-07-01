@@ -118,6 +118,16 @@ function S.install(M)
       -- the end so the addition is additive for codex-learn's json.decode reader.
       '"consensus_angles":' .. encode_string_map(record.consensus_angles),
       '"deliberation_count":' .. encode_number_or_null(record.deliberation_count),
+      -- Saga scoreboard signals (dashboard statline contract, DATA-RETRIEVAL.md): the
+      -- saga `state` this record represents, the controlled `reason` WHY, and the
+      -- diagnose `root_cause`. Additive + optional (null when absent) so codex-learn's
+      -- json.decode ignores them; the local dashboard reader maps them 1:1 to the statline.
+      '"state":' .. encode_string_or_null(record.state),
+      '"reason":' .. encode_string_or_null(record.reason),
+      '"root_cause":' .. encode_string_or_null(record.root_cause),
+      -- Free-text annotation/finding (e.g. "already fixed upstream by #18499"), for the
+      -- human/agent review trail. Additive + optional; codex-learn's json.decode ignores it.
+      '"note":' .. encode_string_or_null(record.note),
     }
     return "{" .. table.concat(fields, ",") .. "}"
   end
@@ -153,6 +163,10 @@ function S.install(M)
       advocate_reason = outcome.advocate_reason,
       consensus_angles = outcome.consensus_angles,
       deliberation_count = outcome.deliberation_count,
+      state = outcome.state,
+      reason = outcome.reason,
+      root_cause = outcome.root_cause,
+      note = outcome.note,
     }
     local line = M.encode_outcome_json(record)
     local path = opts.path or M.outcomes_path()
@@ -172,6 +186,35 @@ function S.install(M)
       end
     end)
     return path
+  end
+
+  -- record_terminal_drop(dedup_key, drop[, opts]) -> append ONE durable §5 record for a
+  -- PRE-track terminal drop (e.g. diagnose needs_info), so the dashboard scoreboard/funnel
+  -- reflects a candidate the loop attempted but did not carry forward. Like
+  -- record_deliberation this is UNCONDITIONAL + local (dry-run-safe, NO foreign write) and
+  -- uses disposition="dropped" (OUTSIDE codex-learn's resolved set {merged,closed,ignored}),
+  -- so the drop is retrievable yet inert to the learning fold. drop:
+  --   { state, reason, source_ref, picked_score, area_labels, type, root_cause }
+  -- BEST-EFFORT: a stats side-channel must NEVER turn a safety drop into a pipeline failure,
+  -- so a durable-channel hiccup is swallowed (returns nil) - mirrors record_deliberation.
+  function M.record_terminal_drop(dedup_key, drop, opts)
+    drop = drop or {}
+    local outcome = {
+      source_ref = drop.source_ref,
+      picked_score = drop.picked_score,
+      area_labels = drop.area_labels,
+      type = drop.type,
+      engagement_reaction = "none",
+      disposition = "dropped",
+      state = drop.state,
+      reason = drop.reason,
+      root_cause = drop.root_cause,
+    }
+    local ok, path = pcall(M.append_outcome, dedup_key, outcome, opts)
+    if ok then
+      return path
+    end
+    return nil
   end
 
   -- ---- reader: the SAME latest-wins-by-dedup_key view codex-learn takes --------
