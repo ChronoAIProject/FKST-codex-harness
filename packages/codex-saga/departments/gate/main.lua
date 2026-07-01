@@ -120,6 +120,21 @@ local function act(event)
     return nil
   end
 
+  -- Durably record the gate PASS (symmetric with the refusal path) so a cleared candidate
+  -- is retrievable in dry-run - otherwise its only durable home is `track`, unreachable
+  -- without a real invite/PR, and the dashboard's "cleared gate" funnel stays empty.
+  core.record_cleared(dedup_key, {
+    state = "engage",
+    source_ref = entity,
+    picked_score = payload.score,
+    area_labels = payload.labels,
+    type = core.classify_type(payload.labels),
+    advocate_verdict = verdict.verdict,
+    advocate_reason = verdict.reason,
+    consensus_angles = consensus_angles,
+    deliberation_count = deliberation_count,
+  })
+
   local raised = {
     schema = "codex-saga.cleared.v1",
     source_ref = entity,

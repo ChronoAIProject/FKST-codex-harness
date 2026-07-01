@@ -84,6 +84,37 @@ function S.install(M)
     return nil
   end
 
+  -- record_cleared(dedup_key, delib[, opts]) -> append ONE durable §5 record for a gate
+  -- PASS, symmetric with record_deliberation's refusal. Without this, a cleared candidate
+  -- has no durable trace in dry-run (its deliberation only threads forward to `track`, which
+  -- is unreachable without a real invite/PR), so the funnel's "cleared gate" is invisible.
+  -- disposition="cleared" is OUTSIDE codex-learn's resolved set {merged,closed,ignored}, so
+  -- it is retrievable yet inert to the learning fold. UNCONDITIONAL + local (NO foreign
+  -- write); BEST-EFFORT (a durable hiccup must never fail the pass path). delib:
+  --   { source_ref, picked_score, area_labels, type, advocate_verdict, advocate_reason,
+  --     consensus_angles, deliberation_count, state }
+  function M.record_cleared(dedup_key, delib, opts)
+    delib = delib or {}
+    local outcome = {
+      source_ref = delib.source_ref,
+      picked_score = delib.picked_score,
+      area_labels = delib.area_labels,
+      type = delib.type,
+      engagement_reaction = "none",
+      disposition = "cleared",
+      state = delib.state or "engage",
+      advocate_verdict = delib.advocate_verdict or "pass",
+      advocate_reason = delib.advocate_reason,
+      consensus_angles = delib.consensus_angles,
+      deliberation_count = delib.deliberation_count,
+    }
+    local ok, path = pcall(M.append_outcome, dedup_key, outcome, opts)
+    if ok then
+      return path
+    end
+    return nil
+  end
+
   -- deliberation_stats([opts]) -> the funnel counts derived from the durable channel
   -- (latest-wins by dedup_key, the SAME view codex-learn takes). opts.path overrides the
   -- outcomes path (tests). Returns:

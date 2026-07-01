@@ -79,6 +79,37 @@ return {
     tk.eq(decoded.deliberation_count, 3)
   end,
 
+  -- The additive scoreboard fields (state/reason/root_cause) round-trip; absent -> null.
+  test_scoreboard_fields_round_trip = function()
+    local line = core.encode_outcome_json({
+      dedup_key = DEDUP, state = "needs_info", reason = "not_reproduced",
+      root_cause = "codex-rs/protocol/src/permissions.rs:1023",
+    })
+    local decoded = json.decode(line)
+    tk.eq(decoded.state, "needs_info")
+    tk.eq(decoded.reason, "not_reproduced")
+    tk.eq(decoded.root_cause, "codex-rs/protocol/src/permissions.rs:1023")
+    -- absent scoreboard fields encode to JSON null (additive; codex-learn ignores them).
+    tk.is_true(core.encode_outcome_json({ dedup_key = "d" }):find('"state":null', 1, true) ~= nil)
+  end,
+
+  -- record_terminal_drop appends ONE durable §5 drop record (state + WHY), performs NO
+  -- foreign write (dry-run-safe), and uses disposition="dropped" OUTSIDE the resolved set.
+  test_record_terminal_drop_appends_inert_drop = function()
+    local path = fresh_path("drop")
+    core.record_terminal_drop(DEDUP, {
+      state = "needs_info", reason = "not_reproduced",
+      source_ref = { kind = "external", ref = ORIGINAL_REF },
+      picked_score = 0.89, area_labels = { "bug", "regression" }, type = "bug",
+    }, { path = path })
+    tk.eq(#tk.command_calls(), 0) -- NO foreign write: local + unconditional append
+    local rec = core.latest_outcome_by_dedup(core.read_outcomes({ path = path }))[DEDUP]
+    tk.eq(rec.state, "needs_info")
+    tk.eq(rec.reason, "not_reproduced")
+    tk.eq(rec.disposition, "dropped")
+    tk.eq(rec.type, "bug")
+  end,
+
   -- The per-angle map encodes with SORTED keys, so the durable line is deterministic;
   -- a nil map encodes to null (absent deliberation), an empty map to {}.
   test_consensus_angles_encode_is_deterministic = function()

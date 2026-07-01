@@ -44,6 +44,18 @@ local function act(event)
 
   if not result.reproduced then
     log.warn("codex-saga/diagnose needs_info: " .. t("codex-saga.diagnose.needs_info_not_reproduced"))
+    -- Durably record the pre-gate terminal DROP so the dashboard scoreboard/funnel reflects
+    -- a candidate the loop attempted but couldn't reproduce. UNCONDITIONAL + local (dry-run
+    -- safe, no foreign write); disposition inert to codex-learn (core.record_terminal_drop).
+    core.record_terminal_drop(dedup_key, {
+      state = "needs_info",
+      reason = "not_reproduced",
+      source_ref = entity,
+      picked_score = payload.score,
+      area_labels = payload.labels,
+      type = core.classify_type(payload.labels),
+      root_cause = result.root_cause,
+    })
     return nil
   end
 

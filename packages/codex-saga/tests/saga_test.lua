@@ -87,6 +87,38 @@ return {
     tk.is_true(raises_of(result, "codex_diagnosed") >= 1)
   end,
 
+  -- Not reproduced -> drop to needs_info (no raise) AND durably record the terminal drop
+  -- so the dashboard scoreboard/funnel reflects the attempt. The append is local +
+  -- UNCONDITIONAL (dry-run-safe, NO foreign write); disposition inert to codex-learn.
+  test_diagnose_not_reproduced_records_drop = function()
+    local outcomes_path = (os.getenv("FKST_RUNTIME_ROOT") or ".") .. "/saga-diagnose-drop.jsonl"
+    tk.mock_command("worktree add", { stdout = "" })
+    tk.mock_command("codex exec", { stdout = "REPRODUCED: no" })
+    tk.mock_command("worktree remove", { stdout = "" })
+    local result = tk.run_department("departments/diagnose/main.lua", {
+      queue = "codex-triage.codex_candidate",
+      payload = {
+        schema = "codex-triage.candidate.v1",
+        dedup_key = "codex-triage:candidate:openai/codex#16205",
+        source_ref = { kind = "external", ref = "openai/codex#issues/16205" },
+        score = 0.89,
+        labels = { "bug", "regression" },
+      },
+    }, { env = {
+      FKST_FORK_LOCAL_PATH = "/tmp/codex-saga-fakefork",
+      FKST_LEARNING_OUTCOMES_PATH = outcomes_path,
+    } })
+    tk.eq(result.exit_code, 0)
+    tk.eq(raises_of(result, "codex_diagnosed"), 0)
+    -- the drop is retrievable from the durable channel: state=needs_info, WHY=not_reproduced.
+    local latest = core.latest_outcome_by_dedup(core.read_outcomes({ path = outcomes_path }))
+    local rec = latest["codex-triage:candidate:openai/codex#16205"]
+    tk.eq(rec.state, "needs_info")
+    tk.eq(rec.reason, "not_reproduced")
+    tk.eq(rec.disposition, "dropped") -- inert to codex-learn's resolved set
+    tk.eq(rec.type, "regression") -- classify_type precedence: regression beats bug
+  end,
+
   -- ---- implement (WRITE-CLASS fix step) -------------------------------------
   -- No fork checkout configured -> drop to needs_info with a WHY, no raise.
   test_implement_needs_info_without_fork = function()
@@ -228,6 +260,33 @@ return {
     tk.eq(rec.disposition, "refused_consensus")
     tk.eq(rec.consensus_angles.alignment, "reject") -- angle 1 mock: reject
     tk.eq(rec.consensus_angles.blast_radius, "approve") -- angle 2 mock: approve
+    tk.eq(rec.deliberation_count, 3) -- 2 consensus angles + the dissent angle
+  end,
+
+  -- A clean gate PASS durably records a "cleared" milestone (symmetric with the refusal
+  -- path) so the dashboard funnel's cleared/engaged stats are retrievable in dry-run. The
+  -- record carries the per-angle deliberation + verdict=pass; disposition is inert to codex-learn.
+  test_gate_pass_records_cleared = function()
+    local cleared_path = (os.getenv("FKST_RUNTIME_ROOT") or ".") .. "/saga-gate-pass-cleared.jsonl"
+    tk.mock_command("gh issue list", { stdout = "[]" })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
+    local result = tk.run_department("departments/gate/main.lua", {
+      queue = "codex_dossier",
+      payload = {
+        schema = "codex-saga.dossier.v1",
+        dedup_key = "codex-triage:candidate:openai/codex#1234",
+        source_ref = candidate_ref(),
+        root_cause = "src/exec/mod.rs:88",
+        labels = { "bug" },
+      },
+    }, { env = { FKST_LEARNING_OUTCOMES_PATH = cleared_path } })
+    tk.eq(result.exit_code, 0)
+    tk.is_true(raises_of(result, "codex_cleared") >= 1)
+    local rec = core.latest_outcome_by_dedup(core.read_outcomes({ path = cleared_path }))["codex-triage:candidate:openai/codex#1234"]
+    tk.eq(rec.disposition, "cleared") -- inert to codex-learn's resolved set
+    tk.eq(rec.state, "engage")
+    tk.eq(rec.advocate_verdict, "pass")
     tk.eq(rec.deliberation_count, 3) -- 2 consensus angles + the dissent angle
   end,
 
