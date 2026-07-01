@@ -62,9 +62,21 @@ M.attempt_candidates = rubric.attempt_candidates
 -- takes an injectable seam so the suite drives it with inline fixtures).
 -- ---------------------------------------------------------------------------
 
--- read_env: env reads go through `printf` (no os.getenv in the restricted Lua),
--- matching the github-proxy pattern. Fails soft to nil.
+-- read_env: PREFER the portable `os.getenv` seam (the pattern codex-saga + codex-learn
+-- use; the engine loads the full os lib) so triage runs cross-platform. Fall back to a
+-- `printf` shell read ONLY where os.getenv is unavailable. Fails soft to nil.
 function M.read_env(name)
+  if type(os) == "table" and type(os.getenv) == "function" then
+    local raw = os.getenv(name)
+    if raw == nil then
+      return nil
+    end
+    local s = M.trim(raw)
+    if s == "" then
+      return nil
+    end
+    return s
+  end
   if type(exec_sync) ~= "function" then
     return nil
   end
@@ -72,7 +84,7 @@ function M.read_env(name)
   if ok and type(result) == "table" and tonumber(result.exit_code) == 0 then
     local value = result.stdout
     if type(value) == "string" and value ~= "" then
-      return value
+      return M.trim(value)
     end
   end
   return nil
@@ -135,8 +147,15 @@ function M.poll_open_issues(repo)
   if type(exec_argv) ~= "function" then
     error("codex-triage: issue poll requires exec_argv")
   end
+  -- The full paginated poll of a large open-issue set can exceed a fixed 120s budget
+  -- (openai/codex passed 8k+ open issues ~ 48MB, ~126s), which would time the poll out
+  -- and raise no candidate. Make the budget configurable so a growing target does not
+  -- stall discovery. Default 300s (headroom over ~126s, within the 5m poll cadence);
+  -- override FKST_TRIAGE_POLL_TIMEOUT. NOTE: fetching every open issue each tick is the
+  -- deeper scaling limit - prefer an incremental (updated-since) poll as issues grow.
+  local poll_timeout = tonumber(M.read_env("FKST_TRIAGE_POLL_TIMEOUT")) or 300
   local endpoint = string.format("repos/%s/issues?state=open&per_page=100", repo)
-  local result = exec_argv({ argv = { "gh", "api", "--paginate", "--slurp", endpoint }, timeout = 120 })
+  local result = exec_argv({ argv = { "gh", "api", "--paginate", "--slurp", endpoint }, timeout = poll_timeout })
   if type(result) ~= "table" or tonumber(result.exit_code) ~= 0 then
     error("codex-triage: gh issue poll failed for " .. tostring(repo))
   end
@@ -165,6 +184,99 @@ function M.load_clusters()
     return {}
   end
   return parsed
+end
+
+-- ---------------------------------------------------------------------------
+-- issue MIRROR (read-only). The mirror is produced OUT-OF-BAND by
+-- scripts/reconcile_issues.py, which owns all pagination/checkpoint/watermark
+-- state. codex-triage is a `stateless_adapter`: it only READS the mirror + the
+-- freshness stamp; it NEVER advances or repairs reconcile state.
+-- ---------------------------------------------------------------------------
+function M.mirror_path()
+  local root = M.read_env("FKST_DURABLE_ROOT") or ".fkst/durable"
+  return root .. "/codex-issue-mirror/open_issues.compact.jsonl"
+end
+
+function M.mirror_state_path()
+  local root = M.read_env("FKST_DURABLE_ROOT") or ".fkst/durable"
+  return root .. "/codex-issue-mirror/reconcile_state.json"
+end
+
+-- Read the cached compact open-issue mirror (JSONL, one issue per line). Returns the
+-- issue array, or NIL when the mirror is absent/unreadable (so score_dedup can fail
+-- closed instead of doing an in-tick live pull). Never inlines bodies (the mirror
+-- carries only the small model the producer wrote).
+function M.load_cached_open_issues(opts)
+  opts = opts or {}
+  local path = opts.path or M.mirror_path()
+  if type(file) ~= "table" or type(file.read) ~= "function" then
+    return nil
+  end
+  if type(file.exists) == "function" and not file.exists(path) then
+    return nil
+  end
+  local ok, text = pcall(file.read, path)
+  if not ok or type(text) ~= "string" or text == "" then
+    return nil
+  end
+  if type(json) ~= "table" or type(json.decode) ~= "function" then
+    return nil
+  end
+  local issues = {}
+  for line in text:gmatch("[^\n]+") do
+    local ok2, rec = pcall(json.decode, line)
+    if ok2 and type(rec) == "table" then
+      issues[#issues + 1] = rec
+    end
+  end
+  return issues
+end
+
+-- The producer's reconcile_state.json (freshness stamp + `partial` flag + count), or nil
+-- when absent/unreadable. score_dedup fails closed unless this carries a valid, non-partial
+-- fresh_as_of_epoch within the age budget.
+function M.mirror_state(opts)
+  opts = opts or {}
+  local path = opts.path or M.mirror_state_path()
+  if type(file) ~= "table" or type(file.read) ~= "function" then
+    return nil
+  end
+  if type(file.exists) == "function" and not file.exists(path) then
+    return nil
+  end
+  local ok, text = pcall(file.read, path)
+  if not ok or type(text) ~= "string" or text == "" then
+    return nil
+  end
+  if type(json) ~= "table" or type(json.decode) ~= "function" then
+    return nil
+  end
+  local ok2, parsed = pcall(json.decode, text)
+  if not ok2 or type(parsed) ~= "table" then
+    return nil
+  end
+  return parsed
+end
+
+-- Current epoch seconds via the engine's portable `now()` seam (sdk_basic; unix seconds) -
+-- the SAME clock codex-learn uses. PLATFORM-AGNOSTIC + deterministic: NEVER a `date +%s`
+-- shell-out (Unix-only) and NEVER os.time (non-deterministic, discouraged in the engine model).
+function M.now_epoch()
+  if type(now) == "function" then
+    local secs = tonumber(now())
+    if secs ~= nil then
+      return secs
+    end
+  end
+  return nil
+end
+
+-- Trim helper (bounded) - mirrors the shared predicate without importing it.
+function M.trim(value)
+  if value == nil then
+    return nil
+  end
+  return (tostring(value):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
 return M
