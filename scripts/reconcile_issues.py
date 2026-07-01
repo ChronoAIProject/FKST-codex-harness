@@ -42,7 +42,7 @@ def gh_get_page(repo: str, page: int):
     """Fetch ONE page of open issues, with retry+backoff. Returns the parsed JSON array."""
     endpoint = (
         f"repos/{repo}/issues?state=open&per_page={PER_PAGE}"
-        f"&page={page}&sort=updated&direction=desc"
+        f"&page={page}&sort=created&direction=asc"
     )
     last_err = ""
     for attempt in range(MAX_RETRIES):
@@ -70,11 +70,17 @@ def gh_get_page(repo: str, page: int):
     raise RuntimeError(f"page {page} failed after {MAX_RETRIES} retries: {last_err}")
 
 
+BODY_EXCERPT = 1000  # the rubric's anatomy score reads only body[:600]; carry a bit more.
+
+
 def compact(issue: dict, repo: str) -> dict:
-    """Project to the SMALL model (no bodies). Mirrors the payload-discipline contract."""
+    """Project to the SMALL model. Carries a BOUNDED body EXCERPT (not the full body): the
+    rubric's anatomy score reads body[:600], and the mirror is score_dedup's read-source (the
+    live poll fed it bodies) - NOT an event payload. The raised codex_candidate stays bodyless."""
     return {
         "number": issue["number"],
         "title": issue.get("title", ""),
+        "body": (issue.get("body") or "")[:BODY_EXCERPT],
         "labels": [lbl.get("name") for lbl in (issue.get("labels") or []) if lbl.get("name")],
         "reactions": (issue.get("reactions") or {}).get("total_count", 0),
         "updated_at": issue.get("updated_at"),
@@ -141,25 +147,34 @@ def main() -> int:
 
     # validate BEFORE swap - a malformed / degenerate / body-bearing pull must NEVER
     # replace the last-good mirror. Parse EVERY line; enforce the compact contract.
-    seen = set()
+    # A DUPLICATE issue number is NOT corruption: paginating a live repo can surface the
+    # SAME issue on two pages (it was updated mid-pull), so we DEDUPE (keep the latest line,
+    # first-seen order) rather than reject the whole reconcile. `sort=created&direction=asc`
+    # keeps pages stable to minimise this, but the dedupe is the robust guarantee.
+    deduped = {}
+    order = []
     for ln in lines:
         try:
             rec = json.loads(ln)
         except json.JSONDecodeError as exc:
             print(f"reconcile: VALIDATION FAILED - malformed JSONL line: {exc}", file=sys.stderr)
             return 2
-        if "body" in rec:  # payload discipline: the mirror never carries bodies
-            print("reconcile: VALIDATION FAILED - record carries a body", file=sys.stderr)
+        if len(rec.get("body") or "") > 2 * BODY_EXCERPT:  # must be a BOUNDED excerpt, not a full body
+            print("reconcile: VALIDATION FAILED - body excerpt too large (not a compact mirror)", file=sys.stderr)
             return 2
         num = rec.get("number")
         ref = (rec.get("source_ref") or {}).get("ref")
         if num is None or not ref:
             print("reconcile: VALIDATION FAILED - record missing number/source_ref.ref", file=sys.stderr)
             return 2
-        if num in seen:
-            print(f"reconcile: VALIDATION FAILED - duplicate issue number {num}", file=sys.stderr)
-            return 2
-        seen.add(num)
+        if num not in deduped:
+            order.append(num)
+        deduped[num] = ln  # last occurrence wins (most recent state of that issue)
+    dups = len(lines) - len(deduped)
+    if dups:
+        print(f"reconcile: deduped {dups} pagination-drift duplicate(s)")
+    lines = [deduped[n] for n in order]
+    count = len(lines)
     if not partial and count < args.min_expected:
         print(
             f"reconcile: VALIDATION FAILED - {count} issues < min {args.min_expected}; "
