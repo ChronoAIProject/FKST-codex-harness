@@ -1,3 +1,9 @@
+<div align="center">
+
+[![English](https://img.shields.io/badge/English-1f6feb?style=for-the-badge)](learning-model.md)&nbsp;[![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-8b949e?style=for-the-badge)](learning-model.zh-CN.md)
+
+</div>
+
 # Learning Model — fkst-codex-harness
 
 How the harness learns *which issues to engage*, *how to comment*, and *how to fix*

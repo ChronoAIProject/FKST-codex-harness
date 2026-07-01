@@ -1,3 +1,9 @@
+<div align="center">
+
+[![English](https://img.shields.io/badge/English-1f6feb?style=for-the-badge)](ARCHITECTURE.md)&nbsp;[![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-8b949e?style=for-the-badge)](ARCHITECTURE.zh-CN.md)
+
+</div>
+
 # fkst-codex-harness — Architecture & Wiring
 
 How the harness is structured: what each package does, what is committed to which

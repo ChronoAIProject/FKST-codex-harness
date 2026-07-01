@@ -1,3 +1,9 @@
+<div align="center">
+
+[![English](https://img.shields.io/badge/English-1f6feb?style=for-the-badge)](codex-contribution-playbook.md)&nbsp;[![简体中文](https://img.shields.io/badge/%E7%AE%80%E4%BD%93%E4%B8%AD%E6%96%87-8b949e?style=for-the-badge)](codex-contribution-playbook.zh-CN.md)
+
+</div>
+
 # Codex Contribution Playbook
 
 **One doc:** findings + importance rubric + issue anatomy + DOs/DON'Ts + the loop

@@ -14,7 +14,7 @@
 （`fkst-substrate` → `BIN`）针对 codex 贡献目标运行自身（`supervise`）。**默认以 dry-run（试运行）
 方式发布**——在显式启用之前不会有任何对外写入。
 
-> **初次接触？请阅读 [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)** —— 包含 packages、仓库、
+> **初次接触？请阅读 [`docs/ARCHITECTURE.zh-CN.md`](docs/ARCHITECTURE.zh-CN.md)** —— 包含 packages、仓库、
 > issue 记录位置以及完整接线（wiring）。Agent/开发者指南：[`CLAUDE.md`](CLAUDE.md)。
 
 ## 它做什么（三个循环）
@@ -34,7 +34,7 @@
 - **`ChronoAIProject/codex`**（fork）—— 仅存放代码与 `fix/<issue>` 分支（Issues 已禁用）。
 - **本仓库** —— **saga 控制 issue**（每个候选一个，带程序生成的标签/标记）+ packages/配置/数据。
 
-完整表格见 `docs/ARCHITECTURE.md` §3。
+完整表格见 `docs/ARCHITECTURE.zh-CN.md` §3。
 
 ## 构建与测试
 
@@ -50,7 +50,7 @@ scripts/run.sh test      # self-test + 各 package 一致性(conformance) + 测�
 ## 运行它（上线 / go-live）
 
 默认 dry-run。要真正运行：
-1. `cp env.example .fkst/env`，填写目标、`BIN`、`FKST_FORK_LOCAL_PATH`、门槛策略、设备 bot 身份（见 `env.example` / `docs/ARCHITECTURE.md` §7）。
+1. `cp env.example .fkst/env`，填写目标、`BIN`、`FKST_FORK_LOCAL_PATH`、门槛策略、设备 bot 身份（见 `env.example` / `docs/ARCHITECTURE.zh-CN.md` §7）。
 2. 以设备 bot 身份认证 `gh`（`repo` 权限范围）。
 3. **构建 issue 镜像：** `python3 scripts/reconcile_issues.py`（可断点续传的全量拉取 →
    `$FKST_DURABLE_ROOT/codex-issue-mirror/`，先校验后原子替换），并安排每 N 天（cron）刷新一次。
@@ -61,16 +61,16 @@ scripts/run.sh test      # self-test + 各 package 一致性(conformance) + 测�
 5. `scripts/run.sh supervise <package>`。
 
 **安全保障：** 仅限受邀的 PR、gate0 安全问题私密转发、每天 ≤3 次的数量上限、每条公开发布都带
-AI 披露 —— 全部在 `codex-saga/gate` 中强制执行。见 `docs/codex-contribution-playbook.md`。
+AI 披露 —— 全部在 `codex-saga/gate` 中强制执行。见 `docs/codex-contribution-playbook.zh-CN.md`。
 
 ## 文档
 
-[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)（结构 + 接线）· [`docs/fkst-codex-harness-architecture.md`](docs/fkst-codex-harness-architecture.md)（规格）
-· [`docs/learning-model.md`](docs/learning-model.md)（自我学习）· [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md)（评分器 + 校准）
-· [`docs/codex-contribution-playbook.md`](docs/codex-contribution-playbook.md)（什么能被合并）· [`docs/dependency-strategy.md`](docs/dependency-strategy.md)
-· [`docs/fork-sync-runbook.md`](docs/fork-sync-runbook.md)。
+[`docs/ARCHITECTURE.zh-CN.md`](docs/ARCHITECTURE.zh-CN.md)（结构 + 接线）· [`docs/fkst-codex-harness-architecture.zh-CN.md`](docs/fkst-codex-harness-architecture.zh-CN.md)（规格）
+· [`docs/learning-model.zh-CN.md`](docs/learning-model.zh-CN.md)（自我学习）· [`docs/METHODOLOGY.zh-CN.md`](docs/METHODOLOGY.zh-CN.md)（评分器 + 校准）
+· [`docs/codex-contribution-playbook.zh-CN.md`](docs/codex-contribution-playbook.zh-CN.md)（什么能被合并）· [`docs/dependency-strategy.zh-CN.md`](docs/dependency-strategy.zh-CN.md)
+· [`docs/fork-sync-runbook.zh-CN.md`](docs/fork-sync-runbook.zh-CN.md)。
 
-> 注：上述文档目前均为英文；本页（README）提供中英双语。
+> 注：以上文档均提供中英双语——点击各页顶部的语言按钮（pill）即可切换。`CLAUDE.md` 与 `LICENSE` 仅提供英文版。
 
 ## 许可证
 
