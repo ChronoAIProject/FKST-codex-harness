@@ -28,7 +28,9 @@ return {
     t.eq(#issues, 2)
     t.eq(issues[1].number, 16205)
     t.eq(issues[1].source_ref.ref, "openai/codex#issues/16205")
-    t.is_nil(issues[1].body) -- compact model: no bodies (payload discipline)
+    -- the mirror carries a BOUNDED body excerpt (the rubric's anatomy score reads body[:600]);
+    -- the raised codex_candidate event stays bodyless per payload discipline.
+    t.is_true(type(issues[1].body) == "string" and #issues[1].body > 0)
   end,
 
   -- An absent mirror returns nil (so score_dedup can fail closed).
