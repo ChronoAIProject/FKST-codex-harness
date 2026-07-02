@@ -78,6 +78,7 @@ local function act(event)
     control_issue = payload.control_issue,
   }
   core.merge_learning(raised, payload)
+  core.record_transition(dedup_key, "proposed", { control_issue = payload.control_issue })
   raise("codex_proposed", raised)
 end
 

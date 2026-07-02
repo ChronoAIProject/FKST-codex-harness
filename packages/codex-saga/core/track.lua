@@ -131,6 +131,17 @@ function S.install(M)
   -- issue (dry-run by default; the outcome marker gates the genuinely-once post). The
   -- returned intent carries the rendered record; in dry-run NO network call happens.
   function M.record_outcome(dedup_key, outcome, control_issue)
+    -- Resolve the control issue locator once (real mode only; dry-run never reads GitHub,
+    -- so egress_write returns before the closures). If it cannot be located, fail closed
+    -- (skip) rather than commenting on issue "" (mirrors core.progress.record_transition).
+    if control_issue == nil and M.write_mode() == "real" then
+      control_issue = M.control_issue_number(dedup_key)
+      if control_issue == nil then
+        log.warn("codex-saga/track: no control issue located for " .. tostring(dedup_key)
+          .. "; skipping the visible outcome mirror (durable append already recorded)")
+        return { mode = "real", op = "track-outcome", skipped = true }
+      end
+    end
     return M.egress_write({
       op = "track-outcome",
       repo = M.tracker_repo(),
@@ -138,12 +149,12 @@ function S.install(M)
       body = M.render_outcome(outcome),
       marker = M.outcome_marker(dedup_key),
       argv_builder = function(path)
-        return M.gh_issue_comment_argv(M.tracker_repo(), tostring(control_issue or ""), path)
+        return M.gh_issue_comment_argv(M.tracker_repo(), tostring(control_issue), path)
       end,
       marker_present = function()
         -- Trust the outcome marker ONLY on a bot-authored comment on the control issue.
         local bot = M.bot_login()
-        local view = M.gh_read(M.gh_issue_view_argv(M.tracker_repo(), tostring(control_issue or ""), "comments"))
+        local view = M.gh_read(M.gh_issue_view_argv(M.tracker_repo(), tostring(control_issue), "comments"))
         if type(view) ~= "table" then
           return false
         end

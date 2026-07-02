@@ -47,6 +47,32 @@ function S.install(M)
     return { argv = argv, timeout = 30 }
   end
 
+  -- Add a label to an existing issue (idempotent in gh). Used to stamp the engage-time
+  -- `engaged` label onto a control issue that was ADOPTED earlier with the `candidate`
+  -- label (core.progress); the durable volume cap + invite/outcome scans key off it.
+  function M.gh_issue_add_label_argv(repo, number, label)
+    return {
+      argv = { GH, "issue", "edit", tostring(number), "--repo", tostring(repo), "--add-label", tostring(label) },
+      timeout = 30,
+    }
+  end
+
+  -- Swap labels on an issue in one call: add each of add_labels, remove each of
+  -- remove_labels (gh no-ops a remove of an absent label). Used for the current-stage
+  -- label swap (core.progress.set_state_label).
+  function M.gh_issue_edit_labels_argv(repo, number, add_labels, remove_labels)
+    local argv = { GH, "issue", "edit", tostring(number), "--repo", tostring(repo) }
+    for _, label in ipairs(add_labels or {}) do
+      table.insert(argv, "--add-label")
+      table.insert(argv, tostring(label))
+    end
+    for _, label in ipairs(remove_labels or {}) do
+      table.insert(argv, "--remove-label")
+      table.insert(argv, tostring(label))
+    end
+    return { argv = argv, timeout = 30 }
+  end
+
   function M.gh_issue_view_argv(repo, number, fields)
     return {
       argv = { GH, "issue", "view", tostring(number), "--repo", tostring(repo), "--json", fields or "comments,assignees,labels,state" },

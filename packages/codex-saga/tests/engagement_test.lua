@@ -54,19 +54,28 @@ return {
   end,
 
   -- Composition is conditioned on rules + retrieved exemplars and ALWAYS carries the
-  -- mandatory AI-disclosure; it cites the exemplar COUNT (refs upstream), never bodies.
+  -- mandatory AI-disclosure; it must provide a real breakdown, fix path, validation,
+  -- and precedent-derived communication choices instead of a thin "I can fix this" pitch.
   test_engage_body_is_rule_and_exemplar_conditioned = function()
     local body = core.engage_body(
       { kind = "external", ref = "openai/codex#issues/1234" },
       { root_cause = "src/exec/mod.rs:88", labels = { "bug" },
+        demo_branch = "codex-saga/fix-1234",
         engagement_exemplars = { "openai/codex#2417", "openai/codex#87" } }
     )
     -- mandatory disclosure + the rule-driven root-cause section.
     tk.is_true(body:find(t("codex-saga.engage.disclose_ai"), 1, true) ~= nil)
     tk.is_true(body:find("src/exec/mod.rs:88", 1, true) ~= nil)
-    -- retrieval-conditioned framing cites the exemplar count.
-    tk.is_true(body:find("modeled on 2", 1, true) ~= nil)
+    tk.is_true(body:find("Breakdown:", 1, true) ~= nil)
+    tk.is_true(body:find("Proposed approach:", 1, true) ~= nil)
+    tk.is_true(body:find("Validation plan", 1, true) ~= nil)
+    tk.is_true(body:find("codex-saga/fix-1234", 1, true) ~= nil)
+    -- retrieval-conditioned framing cites the exemplar count and the learned moves.
+    tk.is_true(body:find("Nearest successful examples considered: 2", 1, true) ~= nil)
+    tk.is_true(body:find("repro/root-cause evidence first", 1, true) ~= nil)
     -- payload discipline: no exemplar ref bodies/threads are dumped into the comment.
     tk.eq(body:find("openai/codex#2417", 1, true), nil)
+    -- Regression guard for the weak public copy that prompted this fix.
+    tk.eq(body:find("happy to implement whichever direction", 1, true), nil)
   end,
 }

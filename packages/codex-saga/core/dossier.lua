@@ -23,6 +23,26 @@ function S.install(M)
     return table.concat(parts, "; ")
   end
 
+  function M.validation_line(payload)
+    payload = payload or {}
+    if M.is_nonempty_string(payload.validation) then
+      return tostring(payload.validation)
+    end
+    if M.is_nonempty_string(payload.test_command) then
+      return "`" .. tostring(payload.test_command) .. "`"
+    end
+    return t("codex-saga.engage.validation_default")
+  end
+
+  function M.fix_scope_line(payload)
+    payload = payload or {}
+    local root_cause = payload.root_cause
+    if M.is_nonempty_string(root_cause) then
+      return t("codex-saga.engage.fix_scope_with_root", { root_cause = tostring(root_cause) })
+    end
+    return t("codex-saga.engage.fix_scope_default")
+  end
+
   -- The dossier comment posted on the openai/codex candidate issue, COMPOSED via
   -- retrieval-conditioned engagement learning (learning-model §4): the section set is
   -- driven by the induced engagement_styleguide rules (core.engagement), and the
@@ -47,13 +67,26 @@ function S.install(M)
     end
 
     local lines = { t("codex-saga.engage.heading"), "" }
-    -- rule-driven: lead with the reproduction / cite the root cause (file:line).
-    if M.styleguide_has(rules, "repro") or M.styleguide_has(rules, "root cause") then
-      table.insert(lines, t("codex-saga.engage.root_cause_label") .. ": " .. tostring(root_cause))
-      table.insert(lines, "")
-    end
-    table.insert(lines, t("codex-saga.engage.impact_label") .. ": " .. M.impact_line(payload))
+    table.insert(lines, t("codex-saga.engage.intro"))
     table.insert(lines, "")
+
+    table.insert(lines, t("codex-saga.engage.breakdown_heading"))
+    if M.styleguide_has(rules, "repro") or M.styleguide_has(rules, "root cause") then
+      table.insert(lines, "- " .. t("codex-saga.engage.repro_line"))
+      table.insert(lines, "- " .. t("codex-saga.engage.root_cause_label") .. ": " .. tostring(root_cause))
+    end
+    table.insert(lines, "- " .. t("codex-saga.engage.impact_label") .. ": " .. M.impact_line(payload))
+    table.insert(lines, "")
+
+    table.insert(lines, t("codex-saga.engage.approach_heading"))
+    table.insert(lines, "- " .. M.fix_scope_line(payload))
+    table.insert(lines, "- " .. t("codex-saga.engage.validation_label") .. ": " .. M.validation_line(payload))
+    if M.is_nonempty_string(payload.demo_branch) then
+      table.insert(lines, "- " .. t("codex-saga.engage.branch_label") .. ": `" .. tostring(payload.demo_branch) .. "`")
+    end
+    table.insert(lines, "- " .. t("codex-saga.engage.invite_policy"))
+    table.insert(lines, "")
+
     if precedent ~= nil and precedent.number ~= nil then
       table.insert(lines, t("codex-saga.engage.precedent_label") .. ": #"
         .. tostring(precedent.number) .. " " .. tostring(precedent.title or ""))
@@ -61,14 +94,10 @@ function S.install(M)
       table.insert(lines, t("codex-saga.engage.precedent_label") .. ": " .. t("codex-saga.engage.precedent_none"))
     end
     table.insert(lines, "")
-    -- rule-driven: offer to implement / ask the maintainer for direction.
-    if M.styleguide_has(rules, "implement") or M.styleguide_has(rules, "direction") then
-      table.insert(lines, t("codex-saga.engage.approach"))
-      table.insert(lines, "")
-    end
-    -- retrieval-conditioned framing: imitate what worked on similar issues.
     if #exemplar_refs > 0 then
-      table.insert(lines, t("codex-saga.engage.modeled_on", { count = tostring(#exemplar_refs) }))
+      table.insert(lines, t("codex-saga.engage.learning_heading"))
+      table.insert(lines, "- " .. t("codex-saga.engage.modeled_on", { count = tostring(#exemplar_refs) }))
+      table.insert(lines, "- " .. t("codex-saga.engage.learning_moves"))
       table.insert(lines, "")
     end
     table.insert(lines, t("codex-saga.engage.disclose_ai"))
@@ -81,16 +110,60 @@ function S.install(M)
     return t("codex-saga.control.title", { dedup_key = tostring(dedup_key) })
   end
 
-  function M.control_body(dedup_key, state, source_ref)
+  -- Human display of the upstream candidate: "openai/codex#16335" (never the tracker).
+  function M.upstream_display(source_ref)
+    local parsed = M.parse_entity_ref(source_ref)
+    if parsed ~= nil then
+      return parsed.repo .. "#" .. parsed.number
+    end
+    if type(source_ref) == "table" and type(source_ref.ref) == "string" then
+      return source_ref.ref
+    end
+    return "(unknown)"
+  end
+
+  -- The control issue body: a rich, human-readable "fkst ai log" (visible arguments in a
+  -- markdown block, like the reference shorts loop) PLUS the hidden HTML-comment markers
+  -- (the durable saga truth GitHub does not render). ctx carries the small adopt-time
+  -- arguments {score, area_labels, type} (nil-safe); root cause + later facts arrive as
+  -- comments. Marker sentinels are CODE (core.markers), never locale content.
+  function M.control_body(dedup_key, state, source_ref, ctx)
+    ctx = ctx or {}
+    local upstream = M.upstream_display(source_ref)
     local lines = {
-      t("codex-saga.control.body"),
+      t("codex-saga.control.heading"),
       "",
-      M.control_marker(dedup_key),
-      M.state_marker(dedup_key, state or "engaged"),
-      -- A tiny pointer back to the ORIGINAL openai/codex candidate (ref only); the
-      -- invite path re-derives the original source_ref from this, never the tracker.
-      M.source_marker(dedup_key, source_ref),
+      t("codex-saga.control.upstream_label") .. ": " .. upstream,
+      "",
+      t("codex-saga.control.why_heading"),
+      "",
     }
+    if ctx.score ~= nil then
+      lines[#lines + 1] = "- **" .. t("codex-saga.control.score_label") .. "**: "
+        .. tostring(ctx.score) .. " · " .. t("codex-saga.control.score_note")
+    end
+    local labels = ctx.area_labels or {}
+    if #labels > 0 then
+      lines[#lines + 1] = "- **" .. t("codex-saga.control.area_label") .. "**: " .. table.concat(labels, ", ")
+    end
+    if M.is_nonempty_string(ctx.type) then
+      lines[#lines + 1] = "- **" .. t("codex-saga.control.type_label") .. "**: " .. tostring(ctx.type)
+    end
+    lines[#lines + 1] = "- **" .. t("codex-saga.control.detected_label") .. "**: " .. t("codex-saga.control.detected_by")
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = t("codex-saga.control.pipeline_note")
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = "---"
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = "🔗 source: " .. upstream .. " · dedup: `" .. tostring(dedup_key) .. "`"
+    lines[#lines + 1] = "🤖 " .. t("codex-saga.control.generated_by")
+    lines[#lines + 1] = ""
+    lines[#lines + 1] = t("codex-saga.control.auto_loop_tag")
+    lines[#lines + 1] = ""
+    -- Hidden durable markers (control identity, state mirror, original-candidate pointer).
+    lines[#lines + 1] = M.control_marker(dedup_key)
+    lines[#lines + 1] = M.state_marker(dedup_key, state or "diagnosing")
+    lines[#lines + 1] = M.source_marker(dedup_key, source_ref)
     return table.concat(lines, "\n")
   end
 

@@ -33,6 +33,7 @@ local function act(event)
   local outcome = core.build_outcome(payload)
   core.append_outcome(dedup_key, outcome)
   core.record_outcome(dedup_key, outcome, payload.control_issue)
+  core.record_transition(dedup_key, "tracked", { control_issue = payload.control_issue })
 
   -- Terminal transition: raise codex_tracked so codex_proposed is not dangling.
   raise("codex_tracked", {

@@ -53,6 +53,8 @@ local function act(event)
     delib.picked_score = payload.score
     delib.area_labels = payload.labels
     core.record_deliberation(dedup_key, delib)
+    -- Surface the refusal WHY on the board too (self-skips when no issue is locatable).
+    core.record_transition(dedup_key, "refused", { reason = reason })
   end
 
   -- gate0: security/safety issues are routed privately and NEVER posted publicly.
@@ -150,6 +152,7 @@ local function act(event)
     deliberation_count = deliberation_count,
   }
   core.merge_learning(raised, payload)
+  core.record_transition(dedup_key, "cleared", {})
   raise("codex_cleared", raised)
 end
 

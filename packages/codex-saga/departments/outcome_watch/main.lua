@@ -38,6 +38,9 @@ local function act(_event)
       local outcome = core.merge_outcome_facts(
         core.build_outcome(core.prior_outcome_fields(prior, candidate.source_ref)), derived)
       core.append_outcome(candidate.dedup_key, outcome)
+      core.record_transition(candidate.dedup_key,
+        (derived.disposition == "merged") and "merged" or "closed",
+        { control_issue = candidate.control_issue })
 
       raise("codex_outcome_updated", {
         schema = "codex-saga.outcome_updated.v1",
