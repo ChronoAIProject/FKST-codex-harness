@@ -466,12 +466,16 @@ end
 -- which must read as "unreadable" (fail closed), never as a silently partial ledger.
 local REMOTE_SCAN_LIMIT = 1000
 
--- Scan the tracker's OPEN control issues -> { [dedup_key] = stage }. Returns nil when
+-- Scan the tracker's control issues (--state all: terminal issues are CLOSED as done
+-- but must still settle their candidate) -> { [dedup_key] = stage }. Returns nil when
 -- the scan cannot be read OR may be truncated (caller fails closed in live posture).
--- STALE non-final claims (lease expired; see claim_ttl_seconds) are RELEASED - omitted
--- from the view - so a dead substrate cannot block the fleet; an unparseable updatedAt
--- counts as FRESH (fail toward blocking). The scan trusts any author: the tracker is
--- the OWNED private repo and a colleague's substrate may run under a different bot login.
+-- Rules:
+--   - a CLOSED issue is FINAL regardless of labels (closed = done; also covers
+--     migrated/manually-closed issues whose stage labels are gone),
+--   - an OPEN non-final claim past the lease TTL is RELEASED (dead substrate),
+--   - an unparseable updatedAt counts as FRESH (fail toward blocking).
+-- The scan trusts any author: the tracker is the OWNED private repo and a colleague's
+-- substrate may run under a different bot login.
 function M.read_remote_claims(exec)
   local run = exec or exec_argv
   if type(run) ~= "function" then
@@ -479,7 +483,7 @@ function M.read_remote_claims(exec)
   end
   local ok, out = pcall(run, {
     argv = { "gh", "issue", "list", "--repo", M.tracker_repo(), "--label", "codex-saga:candidate",
-      "--state", "open", "--limit", tostring(REMOTE_SCAN_LIMIT), "--json", "number,body,labels,updatedAt" },
+      "--state", "all", "--limit", tostring(REMOTE_SCAN_LIMIT), "--json", "number,body,labels,updatedAt,state" },
     timeout = 30,
   })
   if not ok or type(out) ~= "table" or out.exit_code ~= 0 then
@@ -498,17 +502,22 @@ function M.read_remote_claims(exec)
   for _, issue in ipairs(list) do
     local dedup, stage = M.claim_from_issue(issue)
     if dedup ~= nil then
-      local stale = false
-      if not M.remote_claim_is_final(stage) and now ~= nil then
-        local touched = M.iso8601_to_epoch(type(issue) == "table" and issue.updatedAt or nil)
-        if touched ~= nil and (now - touched) > ttl then
-          stale = true
-          log.info("codex-triage: releasing stale remote claim " .. tostring(dedup)
-            .. " (stage=" .. tostring(stage) .. ", idle>" .. tostring(ttl) .. "s)")
+      if tostring(issue.state or ""):upper() == "CLOSED" then
+        -- closed = done: settle with the terminal label when present, else "closed".
+        claims[dedup] = M.remote_claim_is_final(stage) and stage or "closed"
+      else
+        local stale = false
+        if not M.remote_claim_is_final(stage) and now ~= nil then
+          local touched = M.iso8601_to_epoch(type(issue) == "table" and issue.updatedAt or nil)
+          if touched ~= nil and (now - touched) > ttl then
+            stale = true
+            log.info("codex-triage: releasing stale remote claim " .. tostring(dedup)
+              .. " (stage=" .. tostring(stage) .. ", idle>" .. tostring(ttl) .. "s)")
+          end
         end
-      end
-      if not stale then
-        claims[dedup] = stage
+        if not stale then
+          claims[dedup] = stage
+        end
       end
     end
   end

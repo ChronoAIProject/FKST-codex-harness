@@ -207,6 +207,28 @@ return {
     t.eq(result.raises[1].payload.dedup_key, "codex-triage:dup:openai/codex#9002")
   end,
 
+  -- CLOSED = DONE: a closed control issue settles its candidate regardless of labels
+  -- (covers close-on-terminal AND migrated/manually-closed issues whose stage labels
+  -- are gone) - the candidate is skipped, the next one raises.
+  test_remote_closed_issue_settles_candidate = function()
+    t.mock_command("gh issue list", {
+      stdout = '[{"number":12,"state":"CLOSED","body":"'
+        .. json_escape("<!-- fkst:codex-saga:control:codex-triage:dup:openai/codex#9001 -->")
+        .. '","labels":[{"name":"codex-saga:candidate"}]}]',
+    })
+    local result = t.run_department("departments/score_dedup/main.lua", {
+      queue = "codex_issue_poll_tick",
+      payload = {
+        target = "openai/codex",
+        clusters = {},
+        issues = { winner(9001, 80), winner(9002, 70) },
+      },
+    }, { env = { FKST_TRIAGE_SINGLE_FLIGHT = "1", FKST_GITHUB_WRITE = "1" } })
+    t.eq(result.exit_code, 0)
+    t.eq(#result.raises, 1)
+    t.eq(result.raises[1].payload.dedup_key, "codex-triage:dup:openai/codex#9002")
+  end,
+
   -- FAIL-CLOSED: in live posture an UNREADABLE ledger (no gh mock -> the external
   -- command fails closed in test mode) raises NOTHING - never work blind while another
   -- substrate may hold a claim.
