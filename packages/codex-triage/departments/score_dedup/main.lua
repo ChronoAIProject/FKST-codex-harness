@@ -82,15 +82,57 @@ local function act(event)
     if ka ~= kb then return ka < kb end
     return tostring((a.source_ref or {}).ref or "") < tostring((b.source_ref or {}).ref or "")
   end)
+
+  local latest = {}
+  if core.triage_single_flight_enabled() then
+    latest = core.latest_saga_outcomes(core.read_saga_outcomes())
+    local active_key, active = core.active_saga_candidate(latest)
+    if active_key ~= nil then
+      log.info("codex-triage/score_dedup: single-flight active=" .. tostring(active_key)
+        .. " disposition=" .. tostring(active.disposition) .. " state=" .. tostring(active.state)
+        .. " - raising NO candidates this tick.")
+      return nil
+    end
+  end
+
+  -- REMOTE claim ledger (cross-substrate): the tracker's open control issues are the
+  -- SHARED source of truth on which candidates are claimed - local outcomes.jsonl only
+  -- knows this machine. Live posture only (no command in hermetic dry-run tests), and
+  -- FAIL-CLOSED: an unreadable ledger raises nothing this tick (never work blind while
+  -- another substrate may hold the claim; the next tick retries).
+  local remote = {}
+  if core.remote_claims_enabled() then
+    remote = core.read_remote_claims()
+    if remote == nil then
+      log.warn("codex-triage/score_dedup: remote claim ledger (tracker "
+        .. core.tracker_repo() .. ") unreadable - raising NO candidates this tick.")
+      return nil
+    end
+    if core.triage_single_flight_enabled() then
+      local claim_key, claim_stage = core.active_remote_claim(remote)
+      if claim_key ~= nil then
+        log.info("codex-triage/score_dedup: single-flight remote claim=" .. tostring(claim_key)
+          .. " stage=" .. tostring(claim_stage) .. " - raising NO candidates this tick.")
+        return nil
+      end
+    end
+  end
+
   local cap = tonumber(core.read_env("FKST_TRIAGE_MAX_CANDIDATES")) or 5
 
   -- Small payloads only: {source_ref, dedup_key, schema, score}. NEVER the body -
-  -- the consumer re-fetches via source_ref.
+  -- the consumer re-fetches via source_ref. A candidate is skipped when EITHER ledger
+  -- (local outcome, remote control issue) already settles or claims it.
   local raised = 0
   for _, candidate in ipairs(candidates) do
     if cap > 0 and raised >= cap then break end
-    raise("codex_candidate", candidate)
-    raised = raised + 1
+    local previous = latest[candidate.dedup_key]
+    local locally_settled = previous ~= nil and core.outcome_is_final(previous)
+    local remotely_claimed = remote[candidate.dedup_key] ~= nil
+    if not locally_settled and not remotely_claimed then
+      raise("codex_candidate", candidate)
+      raised = raised + 1
+    end
   end
   log.info(string.format("codex-triage/score_dedup: source=%s issues=%d candidates=%d raised=%d cap=%d",
     source, #issues, #candidates, raised, cap))

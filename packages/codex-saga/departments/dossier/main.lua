@@ -71,6 +71,7 @@ local function act(event)
     table.insert(exemplars_used, ref)
   end
   raised.exemplars_used = exemplars_used
+  core.record_transition(dedup_key, "dossier", {})
   raise("codex_dossier", raised)
 end
 

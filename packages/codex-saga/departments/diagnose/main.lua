@@ -27,11 +27,22 @@ local function act(event)
   local dedup_key = payload.dedup_key
   local fork_path = core.fork_local_path()
 
+  -- CLAIM the candidate on the tracker (unconditional, dry-run-safe): the control issue
+  -- is the CROSS-SUBSTRATE claim ledger - other substrates' triage reads the open control
+  -- issues to know which candidates are taken, so the claim must exist BEFORE the
+  -- expensive reproduction work, for every candidate the saga picks up.
+  core.ensure_control_issue(dedup_key, entity, "diagnosing", {
+    score = payload.score,
+    area_labels = payload.labels,
+    type = core.classify_type(payload.labels),
+  })
+
   -- Local reproduction needs the fork checkout. Without it we cannot reproduce:
   -- drop to needs_info with a WHY (guaranteed terminal, no foreign-plane write).
   if not core.is_nonempty_string(fork_path) then
     log.warn("codex-saga/diagnose needs_info: " .. t("codex-saga.diagnose.needs_info_no_fork")
       .. " (set FKST_FORK_LOCAL_PATH)")
+    core.record_transition(dedup_key, "needs_info", { reason = "no_fork" })
     return nil
   end
 
@@ -56,9 +67,11 @@ local function act(event)
       type = core.classify_type(payload.labels),
       root_cause = result.root_cause,
     })
+    core.record_transition(dedup_key, "needs_info", { reason = "not_reproduced", root_cause = result.root_cause })
     return nil
   end
 
+  core.record_transition(dedup_key, "diagnosed", { root_cause = result.root_cause })
   raise("codex_diagnosed", {
     schema = "codex-saga.diagnosed.v1",
     source_ref = entity,

@@ -33,6 +33,7 @@ local function act(event)
   if not core.is_nonempty_string(fork_path) then
     log.warn("codex-saga/implement needs_info: " .. t("codex-saga.implement.needs_info_no_fork")
       .. " (set FKST_FORK_LOCAL_PATH)")
+    core.record_transition(dedup_key, "needs_info", { reason = "implement_no_fork" })
     return nil
   end
 
@@ -59,6 +60,7 @@ local function act(event)
 
   if not result.ok then
     log.warn("codex-saga/implement needs_info: " .. t("codex-saga.implement.needs_info_no_fix"))
+    core.record_transition(dedup_key, "needs_info", { reason = "no_fix" })
     return nil
   end
 
@@ -75,6 +77,7 @@ local function act(event)
     picked_score = payload.score,
     exemplars_used = core.exemplar_refs(exemplars),
   }
+  core.record_transition(dedup_key, "implemented", { detail = "fix branch " .. branch })
   raise("codex_implemented", raised)
 end
 

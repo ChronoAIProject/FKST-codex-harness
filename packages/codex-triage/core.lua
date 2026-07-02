@@ -279,4 +279,254 @@ function M.trim(value)
   return (tostring(value):gsub("^%s+", ""):gsub("%s+$", ""))
 end
 
+-- ---------------------------------------------------------------------------
+-- STRICT single-flight guard over the saga's durable outcome channel.
+--
+-- codex-triage is otherwise stateless, but a live "one issue at a time" run needs
+-- discovery to respect the saga control plane: do not raise another candidate while
+-- the latest outcome for any candidate is still non-final, and do not re-raise a
+-- candidate that already has a final local verdict.
+-- ---------------------------------------------------------------------------
+function M.triage_single_flight_enabled()
+  return M.read_env("FKST_TRIAGE_SINGLE_FLIGHT") == "1"
+end
+
+function M.triage_outcomes_path()
+  local override = M.read_env("FKST_TRIAGE_OUTCOMES_PATH") or M.read_env("FKST_LEARNING_OUTCOMES_PATH")
+  if override ~= nil then
+    return override
+  end
+  local root = M.read_env("FKST_DURABLE_ROOT") or ".fkst/durable"
+  return root .. "/codex-saga/outcomes.jsonl"
+end
+
+function M.read_saga_outcomes(opts)
+  opts = opts or {}
+  local path = opts.path or M.triage_outcomes_path()
+  if type(file) ~= "table" or type(file.read) ~= "function" then
+    return {}
+  end
+  if type(file.exists) == "function" and not file.exists(path) then
+    return {}
+  end
+  local ok, text = pcall(file.read, path)
+  if not ok or type(text) ~= "string" or text == "" then
+    return {}
+  end
+  if type(json) ~= "table" or type(json.decode) ~= "function" then
+    return {}
+  end
+  local records = {}
+  for line in text:gmatch("[^\n]+") do
+    local trimmed = M.trim(line)
+    if trimmed ~= nil and trimmed ~= "" then
+      local ok2, rec = pcall(json.decode, trimmed)
+      if ok2 and type(rec) == "table" then
+        records[#records + 1] = rec
+      end
+    end
+  end
+  return records
+end
+
+function M.latest_saga_outcomes(records)
+  local latest = {}
+  for _, rec in ipairs(records or {}) do
+    if type(rec) == "table" and type(rec.dedup_key) == "string" and rec.dedup_key ~= "" then
+      latest[rec.dedup_key] = rec
+    end
+  end
+  return latest
+end
+
+function M.outcome_is_final(rec)
+  if type(rec) ~= "table" then
+    return false
+  end
+  local disposition = tostring(rec.disposition or "")
+  local state = tostring(rec.state or "")
+
+  if disposition == "dropped" or disposition == "merged" or disposition == "closed"
+    or disposition == "ignored" or disposition == "proposed" then
+    return true
+  end
+  if disposition:find("^refused", 1, false) ~= nil then
+    return true
+  end
+  if state == "needs_info" or state == "blocked" or state == "refused"
+    or state == "security_routed" or state == "needs_invite" or state == "tracked" then
+    return true
+  end
+  return false
+end
+
+function M.active_saga_candidate(latest)
+  for dedup_key, rec in pairs(latest or {}) do
+    if not M.outcome_is_final(rec) then
+      return dedup_key, rec
+    end
+  end
+  return nil
+end
+
+-- ---------------------------------------------------------------------------
+-- REMOTE claims: the saga control issues on the harness tracker are the
+-- CROSS-SUBSTRATE claim ledger. Local outcomes.jsonl only knows what THIS
+-- machine did; when several substrates run against the same contrib target,
+-- an open control issue (created by codex-saga at diagnose-adopt) is the
+-- shared "this candidate is claimed" fact. Read-only; real posture only
+-- (FKST_GITHUB_WRITE=1) so hermetic tests never exec a command; FAIL-CLOSED:
+-- an unreadable tracker scan in live posture raises NO candidates this tick
+-- (never double-claim on a blind tick - the next tick retries).
+-- ---------------------------------------------------------------------------
+function M.tracker_repo()
+  return M.read_env("FKST_SAGA_TRACKER_REPO") or "ChronoAIProject/FKST-codex-harness"
+end
+
+function M.remote_claims_enabled()
+  return M.read_env("FKST_GITHUB_WRITE") == "1"
+end
+
+-- Terminal board-label suffixes: the claim is settled (a re-raise is pointless, not
+-- unsafe). MIRRORS codex-saga's STATE_PHASE_LABEL terminal tags (core/progress.lua) -
+-- change them together.
+local REMOTE_FINAL_STAGES = {
+  ["needs-info"] = true, rejected = true, tracked = true, merged = true, closed = true,
+  blocked = true, ["security-routed"] = true, ["needs-invite"] = true,
+}
+
+-- Parse one tracker issue (gh JSON row) into (dedup_key, stage). The control marker
+-- carries the dedup_key; the swapped codex-saga:<phase|terminal> label carries the
+-- current stage. Sticky locators (candidate/engaged) and prio-* tags are NOT stages -
+-- engaged counts as a stage only when no swappable phase label is present.
+function M.claim_from_issue(issue)
+  if type(issue) ~= "table" or type(issue.body) ~= "string" then
+    return nil
+  end
+  local dedup = issue.body:match("<!%-%- fkst:codex%-saga:control:(.-) %-%->")
+  if dedup == nil or dedup == "" then
+    return nil
+  end
+  local stage = nil
+  for _, label in ipairs(issue.labels or {}) do
+    local name = type(label) == "table" and tostring(label.name or "") or tostring(label)
+    local suffix = name:match("^codex%-saga:(.+)$")
+    if suffix ~= nil and suffix ~= "candidate" and suffix:find("^prio%-") == nil then
+      if suffix ~= "engaged" then
+        stage = suffix -- the swappable phase/terminal label wins
+      elseif stage == nil then
+        stage = "engaged" -- sticky engaged only as a fallback stage
+      end
+    end
+  end
+  return dedup, stage or "claimed"
+end
+
+-- Claim lease TTL: a NON-final claim whose control issue has not been touched for this
+-- many seconds is STALE - its substrate is presumed dead and the claim is released
+-- (dropped from the ledger view) so the loop cannot deadlock on a crashed peer. Every
+-- progress comment / label swap bumps GitHub's updatedAt, so a live substrate's claim
+-- keeps renewing itself. Final claims never expire.
+function M.claim_ttl_seconds()
+  local n = tonumber(M.read_env("FKST_CLAIM_TTL_SECONDS"))
+  if n == nil or n <= 0 then
+    return 3600
+  end
+  return n
+end
+
+-- "2026-07-02T03:11:30Z" -> epoch seconds (UTC), or nil. os.time interprets a table as
+-- LOCAL time, so the local-vs-UTC offset is re-derived and added back.
+function M.iso8601_to_epoch(s)
+  if type(s) ~= "string" then
+    return nil
+  end
+  local y, mo, d, h, mi, sec = s:match("^(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)")
+  if y == nil then
+    return nil
+  end
+  if type(os) ~= "table" or type(os.time) ~= "function" or type(os.date) ~= "function" then
+    return nil
+  end
+  local ok, epoch = pcall(function()
+    local as_local = os.time({ year = tonumber(y), month = tonumber(mo), day = tonumber(d),
+      hour = tonumber(h), min = tonumber(mi), sec = tonumber(sec) })
+    -- Local-vs-UTC offset derived AT the parsed instant (not at now), so a timestamp
+    -- from the other DST season is not shifted by an hour.
+    local offset = os.difftime(as_local, os.time(os.date("!*t", as_local)))
+    return as_local + offset
+  end)
+  if not ok then
+    return nil
+  end
+  return epoch
+end
+
+-- The gh scan page size; a result AT the cap means the ledger view may be TRUNCATED,
+-- which must read as "unreadable" (fail closed), never as a silently partial ledger.
+local REMOTE_SCAN_LIMIT = 1000
+
+-- Scan the tracker's OPEN control issues -> { [dedup_key] = stage }. Returns nil when
+-- the scan cannot be read OR may be truncated (caller fails closed in live posture).
+-- STALE non-final claims (lease expired; see claim_ttl_seconds) are RELEASED - omitted
+-- from the view - so a dead substrate cannot block the fleet; an unparseable updatedAt
+-- counts as FRESH (fail toward blocking). The scan trusts any author: the tracker is
+-- the OWNED private repo and a colleague's substrate may run under a different bot login.
+function M.read_remote_claims(exec)
+  local run = exec or exec_argv
+  if type(run) ~= "function" then
+    return nil
+  end
+  local ok, out = pcall(run, {
+    argv = { "gh", "issue", "list", "--repo", M.tracker_repo(), "--label", "codex-saga:candidate",
+      "--state", "open", "--limit", tostring(REMOTE_SCAN_LIMIT), "--json", "number,body,labels,updatedAt" },
+    timeout = 30,
+  })
+  if not ok or type(out) ~= "table" or out.exit_code ~= 0 then
+    return nil
+  end
+  local ok2, list = pcall(json.decode, out.stdout or "")
+  if not ok2 or type(list) ~= "table" then
+    return nil
+  end
+  if #list >= REMOTE_SCAN_LIMIT then
+    return nil -- possibly truncated: a partial ledger must fail closed, not mislead
+  end
+  local now = M.now_epoch()
+  local ttl = M.claim_ttl_seconds()
+  local claims = {}
+  for _, issue in ipairs(list) do
+    local dedup, stage = M.claim_from_issue(issue)
+    if dedup ~= nil then
+      local stale = false
+      if not M.remote_claim_is_final(stage) and now ~= nil then
+        local touched = M.iso8601_to_epoch(type(issue) == "table" and issue.updatedAt or nil)
+        if touched ~= nil and (now - touched) > ttl then
+          stale = true
+          log.info("codex-triage: releasing stale remote claim " .. tostring(dedup)
+            .. " (stage=" .. tostring(stage) .. ", idle>" .. tostring(ttl) .. "s)")
+        end
+      end
+      if not stale then
+        claims[dedup] = stage
+      end
+    end
+  end
+  return claims
+end
+
+function M.remote_claim_is_final(stage)
+  return REMOTE_FINAL_STAGES[tostring(stage or "")] == true
+end
+
+-- The first remotely-claimed candidate still IN FLIGHT (non-final stage), if any.
+function M.active_remote_claim(claims)
+  for dedup_key, stage in pairs(claims or {}) do
+    if not M.remote_claim_is_final(stage) then
+      return dedup_key, stage
+    end
+  end
+  return nil
+end
+
 return M

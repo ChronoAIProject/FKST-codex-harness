@@ -34,6 +34,7 @@ local function handle_engaged(event)
     -- Carry the learning metadata forward on the direct (engaged) handoff. The cron
     -- tick recovery path below re-derives from GitHub and has no such metadata.
     core.merge_learning(raised, payload)
+    core.record_transition(dedup_key, "invited", { control_issue = payload.control_issue })
     raise("codex_invited", raised)
   end
 end
@@ -55,6 +56,7 @@ local function handle_tick(_event)
       local original_source_ref = core.control_source_ref_from_body(issue.body)
       if dedup_key ~= nil and original_source_ref ~= nil
         and core.recorded_invite(dedup_key, issue.number) then
+        core.record_transition(dedup_key, "invited", { control_issue = tostring(issue.number) })
         raise("codex_invited", {
           schema = "codex-saga.invited.v1",
           source_ref = original_source_ref,
