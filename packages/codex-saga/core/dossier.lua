@@ -122,6 +122,40 @@ function S.install(M)
     return "(unknown)"
   end
 
+  -- ---- board link builders (pure URL strings; board detail only) ---------------
+  function M.issue_url(source_ref)
+    local parsed = M.parse_entity_ref(source_ref)
+    if parsed == nil then
+      return nil
+    end
+    return "https://github.com/" .. parsed.repo .. "/issues/" .. parsed.number
+  end
+
+  -- The fix branch on the fork (owned plane).
+  function M.branch_url(branch)
+    return "https://github.com/" .. M.fork_repo() .. "/tree/" .. tostring(branch)
+  end
+
+  -- Cross-fork compare on the upstream: upstream main vs the fork fix branch - the
+  -- exact diff a future PR would carry.
+  function M.compare_url(branch)
+    local owner, name = M.fork_repo():match("^(.-)/(.+)$")
+    if owner == nil then
+      return M.branch_url(branch)
+    end
+    return "https://github.com/" .. M.contrib_target() .. "/compare/main..."
+      .. owner .. ":" .. name .. ":" .. tostring(branch)
+  end
+
+  -- The first https URL a gh write printed (issue/comment/PR URL), from the egress
+  -- intent's captured stdout (real mode only; nil in dry-run).
+  function M.url_from_intent(intent)
+    if type(intent) ~= "table" or not M.is_nonempty_string(intent.stdout) then
+      return nil
+    end
+    return intent.stdout:match("https://%S+")
+  end
+
   -- The control issue body: a rich, human-readable "fkst ai log" (visible arguments in a
   -- markdown block, like the reference shorts loop) PLUS the hidden HTML-comment markers
   -- (the durable saga truth GitHub does not render). ctx carries the small adopt-time
@@ -130,10 +164,13 @@ function S.install(M)
   function M.control_body(dedup_key, state, source_ref, ctx)
     ctx = ctx or {}
     local upstream = M.upstream_display(source_ref)
+    -- Link the upstream issue when the ref parses (board navigability).
+    local url = M.issue_url(source_ref)
+    local upstream_line = url ~= nil and ("[" .. upstream .. "](" .. url .. ")") or upstream
     local lines = {
       t("codex-saga.control.heading"),
       "",
-      t("codex-saga.control.upstream_label") .. ": " .. upstream,
+      t("codex-saga.control.upstream_label") .. ": " .. upstream_line,
       "",
       t("codex-saga.control.why_heading"),
       "",
@@ -150,6 +187,15 @@ function S.install(M)
       lines[#lines + 1] = "- **" .. t("codex-saga.control.type_label") .. "**: " .. tostring(ctx.type)
     end
     lines[#lines + 1] = "- **" .. t("codex-saga.control.detected_label") .. "**: " .. t("codex-saga.control.detected_by")
+    lines[#lines + 1] = ""
+    -- The run plan: how each numbered phase will be executed for this candidate. Static
+    -- (locale-driven); the live position is the flipping codex-saga:<n>/6 label and the
+    -- per-stage progress comments below.
+    lines[#lines + 1] = t("codex-saga.control.plan_heading")
+    lines[#lines + 1] = ""
+    for i = 1, 6 do
+      lines[#lines + 1] = t("codex-saga.plan." .. tostring(i))
+    end
     lines[#lines + 1] = ""
     lines[#lines + 1] = t("codex-saga.control.pipeline_note")
     lines[#lines + 1] = ""

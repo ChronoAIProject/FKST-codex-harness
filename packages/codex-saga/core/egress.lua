@@ -80,9 +80,18 @@ function S.install(M)
     }
   end
 
-  function M.gh_issue_list_argv(repo, label, fields)
+  -- state defaults to "open"; pass "all" for locators that must still find issues
+  -- CLOSED as done (close-on-terminal board semantics).
+  function M.gh_issue_list_argv(repo, label, fields, state)
     return {
-      argv = { GH, "issue", "list", "--repo", tostring(repo), "--label", tostring(label), "--state", "open", "--json", fields or "number,title,labels" },
+      argv = { GH, "issue", "list", "--repo", tostring(repo), "--label", tostring(label), "--state", tostring(state or "open"), "--json", fields or "number,title,labels" },
+      timeout = 30,
+    }
+  end
+
+  function M.gh_issue_close_argv(repo, number)
+    return {
+      argv = { GH, "issue", "close", tostring(number), "--repo", tostring(repo) },
       timeout = 30,
     }
   end
@@ -91,8 +100,10 @@ function S.install(M)
   -- search query (so the durable volume-cap count needs no client-side date math).
   function M.gh_engagement_list_argv(repo, today)
     return {
+      -- --state all: an engagement that already settled (issue CLOSED as done) still
+      -- counts toward today's volume cap.
       argv = { GH, "issue", "list", "--repo", tostring(repo), "--label", M.state_label("engaged"),
-        "--search", "created:>=" .. tostring(today), "--json", "number,author,body" },
+        "--state", "all", "--search", "created:>=" .. tostring(today), "--json", "number,author,body" },
       timeout = 30,
     }
   end

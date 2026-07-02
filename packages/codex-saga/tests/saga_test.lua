@@ -214,12 +214,13 @@ return {
     tk.eq(raises_of(result, "codex_cleared"), 0)
   end,
 
-  -- A clean item with unanimous consensus clears the gate.
+  -- A clean item with unanimous round-1 consensus (all THREE angles) clears the gate.
   test_gate_clean_pass_clears = function()
     -- Durable engagement count must be determinable (0 today) to pass the cap.
     tk.mock_command("gh issue list", { stdout = "[]" })
-    tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
-    tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve\nRATIONALE: aligned." })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve\nRATIONALE: scoped." })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve\nRATIONALE: plan is sound." })
     local result = tk.run_department("departments/gate/main.lua", {
       queue = "codex_dossier",
       payload = {
@@ -235,13 +236,12 @@ return {
   end,
 
   -- consensus refusal drops with a WHY (no clear) AND durably records the advocate
-  -- refusal + per-angle verdicts to the outcomes channel (retrievable in dry-run; NO
-  -- foreign write). The record's disposition is inert to codex-learn's fold.
+  -- refusal + per-angle verdicts + ROUND signals to the outcomes channel (retrievable
+  -- in dry-run; NO foreign write). With no codex mocks every judge fails CLOSED to
+  -- reject; two consecutive all-reject rounds exit early as a STABLE unanimous reject.
   test_gate_consensus_refusal_drops = function()
     local delib_path = (os.getenv("FKST_RUNTIME_ROOT") or ".") .. "/saga-gate-consensus-refuse.jsonl"
     tk.mock_command("gh issue list", { stdout = "[]" })
-    tk.mock_command("codex exec", { stdout = "VERDICT: reject" })
-    tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
     local result = tk.run_department("departments/gate/main.lua", {
       queue = "codex_dossier",
       payload = {
@@ -258,9 +258,11 @@ return {
     local latest = core.latest_outcome_by_dedup(core.read_outcomes({ path = delib_path }))
     local rec = latest["codex-triage:candidate:openai/codex#1234"]
     tk.eq(rec.disposition, "refused_consensus")
-    tk.eq(rec.consensus_angles.alignment, "reject") -- angle 1 mock: reject
-    tk.eq(rec.consensus_angles.blast_radius, "approve") -- angle 2 mock: approve
-    tk.eq(rec.deliberation_count, 3) -- 2 consensus angles + the dissent angle
+    tk.eq(rec.consensus_angles.alignment, "reject") -- fail-closed judges
+    tk.eq(rec.consensus_angles.approach, "reject") -- the third (defence) angle
+    tk.eq(rec.consensus_rounds, 2) -- stable unanimous reject exits at round 2
+    tk.eq(rec.converge_mode, "rejected")
+    tk.eq(rec.deliberation_count, 7) -- 2 rounds x 3 angles + the dissent
   end,
 
   -- A clean gate PASS durably records a "cleared" milestone (symmetric with the refusal
@@ -269,8 +271,9 @@ return {
   test_gate_pass_records_cleared = function()
     local cleared_path = (os.getenv("FKST_RUNTIME_ROOT") or ".") .. "/saga-gate-pass-cleared.jsonl"
     tk.mock_command("gh issue list", { stdout = "[]" })
-    tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
-    tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve\nRATIONALE: aligned." })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve\nRATIONALE: scoped." })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve\nRATIONALE: plan is sound." })
     local result = tk.run_department("departments/gate/main.lua", {
       queue = "codex_dossier",
       payload = {
@@ -287,7 +290,9 @@ return {
     tk.eq(rec.disposition, "cleared") -- inert to codex-learn's resolved set
     tk.eq(rec.state, "engage")
     tk.eq(rec.advocate_verdict, "pass")
-    tk.eq(rec.deliberation_count, 3) -- 2 consensus angles + the dissent angle
+    tk.eq(rec.deliberation_count, 4) -- 1 round x 3 consensus angles + the dissent
+    tk.eq(rec.consensus_rounds, 1) -- unanimous round-1 approval converges immediately
+    tk.eq(rec.converge_mode, "unanimous")
   end,
 
   -- FIX 3: the volume cap is DURABLE and MARKER-TRUTH. With cap-many bot-authored,
@@ -325,8 +330,9 @@ return {
         .. '{"author":{"login":"codex-bot"},"body":"also no marker"},'
         .. '{"author":{"login":"codex-bot"},"body":"still none"}]',
     })
-    tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
-    tk.mock_command("codex exec", { stdout = "VERDICT: approve" })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve\nRATIONALE: aligned." })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve\nRATIONALE: scoped." })
+    tk.mock_command("codex exec", { stdout = "VERDICT: approve\nRATIONALE: plan is sound." })
     local result = tk.run_department("departments/gate/main.lua", {
       queue = "codex_dossier",
       payload = {

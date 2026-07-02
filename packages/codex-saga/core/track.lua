@@ -16,7 +16,7 @@ function S.install(M)
   -- Carried as refs/scalars per the payload-discipline (NEVER diffs or bodies).
   -- `labels` is threaded too so the terminal recorder can derive the §5 area_labels +
   -- type for the rubric re-fit fold (codex-learn), not just calibration.
-  local LEARNING_KEYS = { "picked_score", "exemplars_used", "advocate_verdict", "advocate_reason", "engagement_exemplars", "labels", "consensus_angles", "deliberation_count" }
+  local LEARNING_KEYS = { "picked_score", "exemplars_used", "advocate_verdict", "advocate_reason", "engagement_exemplars", "labels", "consensus_angles", "deliberation_count", "approach", "consensus_rounds", "converge_mode" }
 
   function M.learning_keys()
     return LEARNING_KEYS
@@ -74,6 +74,9 @@ function S.install(M)
       -- deliberation into the durable record + control-issue comment.
       consensus_angles = payload.consensus_angles,
       deliberation_count = payload.deliberation_count,
+      -- Iterative-deliberation signals (rounds run + how convergence was reached).
+      consensus_rounds = payload.consensus_rounds,
+      converge_mode = payload.converge_mode,
     }
   end
 
@@ -123,6 +126,8 @@ function S.install(M)
       "advocate_reason: " .. tostring(outcome.advocate_reason or ""),
       "consensus_angles: " .. M.render_consensus_angles(outcome.consensus_angles),
       "deliberation_count: " .. tostring(outcome.deliberation_count or 0),
+      "consensus_rounds: " .. tostring(outcome.consensus_rounds or 1),
+      "converge_mode: " .. tostring(outcome.converge_mode or "unanimous"),
     }
     return table.concat(lines, "\n")
   end

@@ -118,6 +118,18 @@ function S.install(M)
     return M.body_has_marker(entity, marker) and M.bot_authored(entity, bot)
   end
 
+  -- Neutralize the HTML-comment open sequence in FREE TEXT derived from codex output /
+  -- public issue content. Markers are matched as plain substrings on bot-authored
+  -- bodies, and the bot itself posts these narratives - so injected text could
+  -- otherwise forge a marker and spoof a future idempotency check (skip a real write).
+  -- Breaking "<!--" makes the fkst marker namespace unforgeable from free text.
+  function M.strip_marker_namespace(text)
+    if text == nil then
+      return nil
+    end
+    return (tostring(text):gsub("<!%-%-", "<! --"))
+  end
+
   -- Program-produced saga UI-hint label for the control issue.
   function M.state_label(state)
     return "codex-saga:" .. tostring(state)

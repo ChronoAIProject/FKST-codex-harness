@@ -71,7 +71,13 @@ local function act(event)
     table.insert(exemplars_used, ref)
   end
   raised.exemplars_used = exemplars_used
-  core.record_transition(dedup_key, "dossier", {})
+  core.record_transition(dedup_key, "dossier", {
+    detail = precedent ~= nil and ("precedent: #" .. tostring(precedent.number)
+      .. " " .. tostring(precedent.title or "")) or nil,
+    summary = "fix branch [" .. branch .. "](" .. core.branch_url(branch) .. ")"
+      .. " · [compare vs upstream](" .. core.compare_url(branch) .. ")"
+      .. " · engagement exemplars: " .. tostring(#engagement_exemplars),
+  })
   raise("codex_dossier", raised)
 end
 

@@ -72,6 +72,8 @@ function S.install(M)
       advocate_reason = delib.advocate_reason,
       consensus_angles = delib.consensus_angles,
       deliberation_count = delib.deliberation_count,
+      consensus_rounds = delib.consensus_rounds,
+      converge_mode = delib.converge_mode,
     }
     -- BEST-EFFORT: the gate is write_class=false; its durable truth is the drop decision
     -- + log. This stats side-channel must NEVER convert a safety REFUSAL into a pipeline
@@ -107,6 +109,8 @@ function S.install(M)
       advocate_reason = delib.advocate_reason,
       consensus_angles = delib.consensus_angles,
       deliberation_count = delib.deliberation_count,
+      consensus_rounds = delib.consensus_rounds,
+      converge_mode = delib.converge_mode,
     }
     local ok, path = pcall(M.append_outcome, dedup_key, outcome, opts)
     if ok then

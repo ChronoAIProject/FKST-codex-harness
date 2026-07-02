@@ -39,7 +39,7 @@ local function act(event)
   local branch = payload.demo_branch or ("codex-saga/fix-" .. core.safe_segment(dedup_key))
   local fork_owner = (core.fork_repo():match("^(.-)/") or "fork")
 
-  core.egress_write({
+  local pr_intent = core.egress_write({
     op = "open-pr",
     repo = upstream,
     dedup_key = dedup_key,
@@ -78,7 +78,12 @@ local function act(event)
     control_issue = payload.control_issue,
   }
   core.merge_learning(raised, payload)
-  core.record_transition(dedup_key, "proposed", { control_issue = payload.control_issue })
+  -- Board links: the opened PR (gh stdout, real mode) + the branch it carries.
+  local pr_url = core.url_from_intent(pr_intent)
+  core.record_transition(dedup_key, "proposed", {
+    control_issue = payload.control_issue,
+    detail = pr_url ~= nil and ("PR: " .. pr_url) or ("branch: " .. core.branch_url(branch)),
+  })
   raise("codex_proposed", raised)
 end
 
