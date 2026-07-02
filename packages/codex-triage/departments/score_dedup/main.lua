@@ -36,29 +36,48 @@ local function act(event)
 
   -- Discovery source precedence (stateless adapter over {injected, cached mirror}):
   --   1) payload.issues  - tests / explicit injection
-  --   2) the durable MIRROR - produced out-of-band by scripts/reconcile_issues.py
-  --   3) FAIL-CLOSED     - raise nothing + log loudly. There is NO in-tick live-poll path:
-  --      the 126s all-or-nothing poll must never run inside this 30s-stall department.
+  --   2) the durable MIRROR - produced out-of-band by scripts/reconcile_issues.py,
+  --      or by the in-package SLOW bootstrap (core.bootstrap_advance) below
+  --   3) BOOTSTRAP + FAIL-CLOSED - raise nothing this tick, but advance the paced
+  --      page-by-page pull a few bounded pages so a missing/stale mirror self-heals
+  --      over successive ticks (FKST_TRIAGE_BOOTSTRAP=0 disables, restoring the
+  --      pure fail-closed posture). There is STILL no in-tick full-poll path: the
+  --      126s all-or-nothing poll must never run inside this 30s-stall department.
   local issues = payload.issues
   local source = "payload"
   if issues == nil then
     issues = core.load_cached_open_issues()
     source = "mirror"
+    -- FAIL CLOSED on a missing OR unusable mirror: require a valid, NON-PARTIAL
+    -- state stamp, a readable clock, and an age within budget. A missing/partial/
+    -- stale/unverifiable state means the map is absent or broken - never score it.
+    local unusable = nil
     if issues == nil then
-      log.warn("codex-triage/score_dedup: no issue mirror at " .. core.mirror_path()
-        .. " - run scripts/reconcile_issues.py. Raising NO candidates this tick.")
-      return nil
+      unusable = "no issue mirror at " .. core.mirror_path()
+    else
+      local st = core.mirror_state()
+      local now = core.now_epoch()
+      local fresh = st and tonumber(st.fresh_as_of_epoch)
+      local max_age = tonumber(core.read_env("FKST_TRIAGE_MIRROR_MAX_AGE")) or 172800 -- 2 days
+      if st == nil or st.partial == true or fresh == nil or now == nil or (now - fresh) > max_age then
+        unusable = "issue mirror unusable (missing/partial/stale/unverifiable state)"
+      end
     end
-    -- FAIL CLOSED on an unusable mirror: require a valid, NON-PARTIAL state stamp, a
-    -- readable clock, and an age within budget. A missing/partial/stale/unverifiable
-    -- state means the reconcile is broken or the file is a smoke artifact - not a map.
-    local st = core.mirror_state()
-    local now = core.now_epoch()
-    local fresh = st and tonumber(st.fresh_as_of_epoch)
-    local max_age = tonumber(core.read_env("FKST_TRIAGE_MIRROR_MAX_AGE")) or 172800 -- 2 days
-    if st == nil or st.partial == true or fresh == nil or now == nil or (now - fresh) > max_age then
-      log.warn("codex-triage/score_dedup: issue mirror unusable (missing/partial/stale/unverifiable"
-        .. " state) - run scripts/reconcile_issues.py. Raising NO candidates.")
+    if unusable ~= nil then
+      if core.bootstrap_enabled() then
+        local step = core.bootstrap_advance()
+        log.warn("codex-triage/score_dedup: " .. unusable
+          .. " - bootstrap " .. tostring(step.status)
+          .. " (pages+" .. tostring(step.pages or 0)
+          .. ", next=" .. tostring(step.next_page or "-")
+          .. (step.count ~= nil and (", count=" .. tostring(step.count)) or "")
+          .. (step.error ~= nil and (", err=" .. tostring(step.error)) or "")
+          .. "). Raising NO candidates this tick.")
+      else
+        log.warn("codex-triage/score_dedup: " .. unusable
+          .. " - bootstrap disabled; run scripts/reconcile_issues.py."
+          .. " Raising NO candidates this tick.")
+      end
       return nil
     end
   end

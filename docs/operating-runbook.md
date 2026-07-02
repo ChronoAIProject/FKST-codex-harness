@@ -30,6 +30,9 @@ How to drive the loop with the substrate (engine → `BIN`) + this harness. Comp
 cd /Users/chronoai/Desktop/projects/FKST-codex-harness
 
 # 1. Refresh the corpus the loop scores (checkpointed; --resume to continue, --max-pages N to smoke)
+#    OPTIONAL when the loop runs long enough: with no usable mirror, codex-triage's in-package
+#    bootstrap pulls the same corpus SLOWLY on its own (a few pages per 5m tick, ~2h for ~8k
+#    issues; FKST_TRIAGE_BOOTSTRAP=0 disables). Running the script here is just the fast path.
 python3 scripts/reconcile_issues.py
 
 # 2. Clear stale runtime scratch so nothing short-circuits from a prior/killed session
