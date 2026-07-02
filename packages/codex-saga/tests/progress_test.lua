@@ -84,6 +84,9 @@ return {
     local fix = "FIX_WRITTEN: yes\nFILES: codex-rs/tui/src/lib.rs, codex-rs/tui/tests/t.rs\nAPPROACH: clamp the index and add a regression test.\n"
     tk.eq(core.parse_files(fix), "codex-rs/tui/src/lib.rs, codex-rs/tui/tests/t.rs")
     tk.eq(core.parse_approach(fix), "clamp the index and add a regression test.")
+    -- approach is a payload-carried scalar: BOUNDED at parse (round-8 review).
+    local long = core.parse_approach("APPROACH: " .. string.rep("z", 900))
+    tk.is_true(#long < 400)
   end,
 
   -- ---- board link builders ---------------------------------------------------

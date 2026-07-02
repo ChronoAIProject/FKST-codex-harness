@@ -260,10 +260,15 @@ function S.install(M)
     return verdict ~= nil and verdict:lower() == "yes"
   end
 
+  -- The bounded-scalar cap for a parsed narrative line: `approach` is carried on the
+  -- codex_implemented payload (payload discipline: small scalars only) and re-fed into
+  -- the gate's judge prompts, so it MUST stay small.
+  local SCALAR_LIMIT = 300
+
   -- Parse a single-line marker value ("FILES: ...", "APPROACH: ..."), rejecting empty
-  -- and template placeholders. Board detail only; NEVER carried on event payloads.
-  -- codex-derived text from public issue content: marker namespace neutralized so it
-  -- can never forge a bot-authored fkst marker downstream.
+  -- and template placeholders, BOUNDED to a small scalar. codex-derived text from
+  -- public issue content: marker namespace neutralized so it can never forge a
+  -- bot-authored fkst marker downstream.
   local function parse_marker_line(stdout, marker)
     local raw = tostring(stdout or ""):match(marker .. ":%s*([^\r\n]+)")
     if raw == nil then
@@ -272,6 +277,9 @@ function S.install(M)
     local trimmed = M.trim(raw)
     if trimmed == "" or trimmed:find("^<") ~= nil then
       return nil
+    end
+    if #trimmed > SCALAR_LIMIT then
+      trimmed = trimmed:sub(1, SCALAR_LIMIT) .. " …"
     end
     return M.strip_marker_namespace(trimmed)
   end

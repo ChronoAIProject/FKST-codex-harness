@@ -81,10 +81,14 @@ function S.install(M)
   end
 
   -- state defaults to "open"; pass "all" for locators that must still find issues
-  -- CLOSED as done (close-on-terminal board semantics).
-  function M.gh_issue_list_argv(repo, label, fields, state)
+  -- CLOSED as done (close-on-terminal board semantics). limit defaults to 200 (an
+  -- explicit page size, never the gh CLI default of 30); callers that must detect
+  -- truncation compare the result count against the limit they passed.
+  function M.gh_issue_list_argv(repo, label, fields, state, limit)
     return {
-      argv = { GH, "issue", "list", "--repo", tostring(repo), "--label", tostring(label), "--state", tostring(state or "open"), "--json", fields or "number,title,labels" },
+      argv = { GH, "issue", "list", "--repo", tostring(repo), "--label", tostring(label),
+        "--state", tostring(state or "open"), "--limit", tostring(limit or 200),
+        "--json", fields or "number,title,labels" },
       timeout = 30,
     }
   end

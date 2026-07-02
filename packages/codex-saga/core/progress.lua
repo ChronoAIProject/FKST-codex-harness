@@ -128,24 +128,38 @@ function S.install(M)
     end
   end
 
-  -- Locate the control issue number by the stable candidate label + control marker
+  -- The locator scan page size; a result AT the cap means the view may be TRUNCATED
+  -- and an older control issue could be missed.
+  local LOCATOR_SCAN_LIMIT = 1000
+
+  -- Scan for the control issue by the stable candidate label + control marker
   -- (bot-authored trust), across OPEN AND CLOSED issues (terminal issues are CLOSED as
   -- done; the locator must still find them so a settled candidate is never re-created).
-  -- Returns a string number or nil. This is a REAL-mode gh READ; callers keep it inside
-  -- egress closures / write_mode guards so dry-run never runs it.
-  function M.control_issue_number(dedup_key, exec)
-    local list = M.gh_read(M.gh_issue_list_argv(M.tracker_repo(), M.candidate_label(), "number,body,author", "all"), exec)
+  -- Returns { number = string|nil, truncated = bool }: truncated is true when the scan
+  -- is unreadable or at the page cap - "unsure" - so creation paths can fail CLOSED
+  -- (never create a possible duplicate on a blind scan). REAL-mode gh READ; callers
+  -- keep it inside egress closures / write_mode guards so dry-run never runs it.
+  function M.control_issue_scan(dedup_key, exec)
+    local list = M.gh_read(M.gh_issue_list_argv(M.tracker_repo(), M.candidate_label(),
+      "number,body,author", "all", LOCATOR_SCAN_LIMIT), exec)
     if type(list) ~= "table" then
-      return nil
+      return { number = nil, truncated = true }
     end
+    local truncated = #list >= LOCATOR_SCAN_LIMIT
     local marker = M.control_marker(dedup_key)
     local bot = M.bot_login()
     for _, issue in ipairs(list) do
       if M.trusted_marker(issue, marker, bot) then
-        return tostring(issue.number)
+        return { number = tostring(issue.number), truncated = truncated }
       end
     end
-    return nil
+    return { number = nil, truncated = truncated }
+  end
+
+  -- The plain locator: a string number or nil (nil on not-found AND on unsure -
+  -- consumers of this form only SKIP work on nil, which is fail-closed for them).
+  function M.control_issue_number(dedup_key, exec)
+    return M.control_issue_scan(dedup_key, exec).number
   end
 
   -- Adopt: idempotently create the control issue on the tracker with the stable
@@ -180,7 +194,11 @@ function S.install(M)
         return M.gh_issue_create_argv(M.tracker_repo(), M.control_title(dedup_key), path, create_labels)
       end,
       marker_present = function()
-        return M.control_issue_number(dedup_key) ~= nil
+        -- Fail CLOSED on an unsure scan (unreadable or possibly truncated): treating
+        -- "unsure" as "present" skips the create, so a blind scan can never produce a
+        -- duplicate control issue for a candidate that already has one.
+        local scan = M.control_issue_scan(dedup_key)
+        return scan.number ~= nil or scan.truncated == true
       end,
     })
   end
