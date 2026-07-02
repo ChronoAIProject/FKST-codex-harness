@@ -118,6 +118,10 @@ function S.install(M)
       -- the end so the addition is additive for codex-learn's json.decode reader.
       '"consensus_angles":' .. encode_string_map(record.consensus_angles),
       '"deliberation_count":' .. encode_number_or_null(record.deliberation_count),
+      -- Iterative-deliberation signals (rounds run + convergence mode). Additive +
+      -- optional so codex-learn's json.decode ignores them until it opts in.
+      '"consensus_rounds":' .. encode_number_or_null(record.consensus_rounds),
+      '"converge_mode":' .. encode_string_or_null(record.converge_mode),
       -- Saga scoreboard signals (dashboard statline contract, DATA-RETRIEVAL.md): the
       -- saga `state` this record represents, the controlled `reason` WHY, and the
       -- diagnose `root_cause`. Additive + optional (null when absent) so codex-learn's
@@ -163,6 +167,8 @@ function S.install(M)
       advocate_reason = outcome.advocate_reason,
       consensus_angles = outcome.consensus_angles,
       deliberation_count = outcome.deliberation_count,
+      consensus_rounds = outcome.consensus_rounds,
+      converge_mode = outcome.converge_mode,
       state = outcome.state,
       reason = outcome.reason,
       root_cause = outcome.root_cause,

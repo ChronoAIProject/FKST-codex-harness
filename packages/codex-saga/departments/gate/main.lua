@@ -53,8 +53,19 @@ local function act(event)
     delib.picked_score = payload.score
     delib.area_labels = payload.labels
     core.record_deliberation(dedup_key, delib)
-    -- Surface the refusal WHY on the board too (self-skips when no issue is locatable).
-    core.record_transition(dedup_key, "refused", { reason = reason })
+    -- Surface the refusal WHY on the board too (self-skips when no issue is locatable),
+    -- including the advocate's reasoning, the per-angle verdicts, and the full
+    -- multi-round deliberation transcript (the audit log).
+    local summary = nil
+    if core.is_nonempty_string(delib.advocate_reason) then
+      summary = "advocate: " .. tostring(delib.advocate_reason)
+        .. " · angles: " .. core.render_consensus_angles(delib.consensus_angles)
+    end
+    core.record_transition(dedup_key, "refused", {
+      reason = reason,
+      summary = summary,
+      transcript = delib.transcript,
+    })
   end
 
   -- gate0: security/safety issues are routed privately and NEVER posted publicly.
@@ -89,14 +100,19 @@ local function act(event)
     return nil
   end
 
-  -- Multi-angle consensus behind the devil's-advocate gate (fail-closed: a verdict
-  -- only passes when consensus APPROVES and the dissent did not block). The advocate
-  -- is dependency-inverted - the gate injects the consensus decision as `decide`.
+  -- ITERATIVE multi-angle consensus behind the devil's-advocate gate (fail-closed: a
+  -- verdict only passes when consensus APPROVES and the dissent did not block). The
+  -- advocate is dependency-inverted - the gate injects the consensus decision as
+  -- `decide`. The proposal carries the ACTUAL fix approach (bounded scalar threaded
+  -- from implement) so the judges defend/attack the real plan, and the deliberation
+  -- runs rounds toward convergence (unanimity early; majority-with-recorded-dissent
+  -- after the round cap; see core/consensus.lua).
   local proposal = {
     proposal_id = dedup_key,
     dedup_key = dedup_key,
     title = "openai/codex candidate " .. tostring(dedup_key),
     root_cause = payload.root_cause,
+    approach = payload.approach,
     source_ref = entity,
   }
   local verdict = advocate.review({
@@ -105,11 +121,15 @@ local function act(event)
     end,
     subject = proposal,
   })
-  -- Surface the per-angle deliberation the advocate weighed (align/blast/dissent) as a
-  -- small scalar map + a judgment count - retrievable on both the refuse and pass paths.
-  local angle_results = (type(verdict.consensus) == "table" and verdict.consensus.angle_results) or nil
+  -- Surface the deliberation: the FINAL-round per-angle map + the totals + the full
+  -- multi-round transcript (board audit log) - on both the refuse and pass paths.
+  local consensus = (type(verdict.consensus) == "table") and verdict.consensus or {}
+  local angle_results = consensus.angle_results
   local consensus_angles = core.zip_angles(angle_results, verdict.dissent)
-  local deliberation_count = core.deliberation_count(angle_results, verdict.dissent)
+  local rounds_run = tonumber(consensus.rounds_run) or 1
+  -- Total judgments weighed = every angle judgment across every round + the dissent.
+  local deliberation_count = rounds_run * ((type(angle_results) == "table" and #angle_results) or 0) + 1
+  local transcript = core.render_deliberation(consensus)
   if verdict.verdict ~= "pass" then
     log.warn("codex-saga/gate drop: " .. t("codex-saga.gate.refuse_consensus")
       .. " (advocate: " .. tostring(verdict.reason) .. ")")
@@ -118,6 +138,9 @@ local function act(event)
       advocate_reason = verdict.reason,
       consensus_angles = consensus_angles,
       deliberation_count = deliberation_count,
+      consensus_rounds = rounds_run,
+      converge_mode = consensus.converge_mode,
+      transcript = transcript,
     })
     return nil
   end
@@ -135,6 +158,8 @@ local function act(event)
     advocate_reason = verdict.reason,
     consensus_angles = consensus_angles,
     deliberation_count = deliberation_count,
+    consensus_rounds = rounds_run,
+    converge_mode = consensus.converge_mode,
   })
 
   local raised = {
@@ -150,9 +175,18 @@ local function act(event)
     advocate_reason = verdict.reason,
     consensus_angles = consensus_angles,
     deliberation_count = deliberation_count,
+    consensus_rounds = rounds_run,
+    converge_mode = consensus.converge_mode,
   }
   core.merge_learning(raised, payload)
-  core.record_transition(dedup_key, "cleared", {})
+  core.record_transition(dedup_key, "cleared", {
+    summary = "advocate: " .. tostring(verdict.reason or "pass")
+      .. " · angles: " .. core.render_consensus_angles(consensus_angles)
+      .. " · deliberations: " .. tostring(deliberation_count)
+      .. " · rounds: " .. tostring(rounds_run)
+      .. " (" .. tostring(consensus.converge_mode or "?") .. ")",
+    transcript = transcript,
+  })
   raise("codex_cleared", raised)
 end
 

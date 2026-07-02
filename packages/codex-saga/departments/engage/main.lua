@@ -45,9 +45,11 @@ local function act(event)
   end
 
   -- Outward dossier comment on the openai/codex candidate issue. The body ALWAYS
-  -- includes the AI-disclosure line; the marker gates the genuinely-once post.
+  -- includes the AI-disclosure line; the marker gates the genuinely-once post. The
+  -- intent is captured so the posted comment URL (gh stdout, real mode) lands on the
+  -- board.
   local body = core.engage_body(entity, payload)
-  core.egress_write({
+  local comment_intent = core.egress_write({
     op = "engage-comment",
     repo = candidate.repo,
     dedup_key = dedup_key,
@@ -78,8 +80,13 @@ local function act(event)
     core.record_engagement()
   end
 
-  -- Mark the board: engaged.
-  core.record_transition(dedup_key, "engaged", { control_issue = control_issue })
+  -- Mark the board: engaged, linking the posted upstream comment (or the upstream
+  -- issue when the comment URL is unavailable, e.g. idempotent skip).
+  local comment_url = core.url_from_intent(comment_intent) or core.issue_url(entity)
+  core.record_transition(dedup_key, "engaged", {
+    control_issue = control_issue,
+    detail = comment_url ~= nil and ("dossier comment: " .. comment_url) or nil,
+  })
 
   local raised = {
     schema = "codex-saga.engaged.v1",

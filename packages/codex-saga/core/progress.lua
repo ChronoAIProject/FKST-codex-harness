@@ -55,6 +55,15 @@ local STATE_PHASE_LABEL = {
 local PRIO_HIGH = 80
 local PRIO_MID = 65
 
+-- Terminal states whose control issue is CLOSED as done (board semantics: open =
+-- active work, closed = done, label = how it ended). `tracked` stays OPEN: the PR is
+-- still live upstream and outcome_watch keeps re-deriving it. The claim ledger +
+-- locators scan --state all, so a closed issue still settles its candidate.
+local CLOSE_ON_TERMINAL = {
+  needs_info = true, refused = true, blocked = true, security_routed = true,
+  needs_invite = true, merged = true, closed = true,
+}
+
 function S.install(M)
   -- Stable locator label: present from adopt through terminal, never removed, so the
   -- progress feed can re-derive the control issue number at any stage. Distinct from
@@ -119,22 +128,38 @@ function S.install(M)
     end
   end
 
-  -- Locate the OPEN control issue number by the stable candidate label + control marker
-  -- (bot-authored trust). Returns a string number or nil. This is a REAL-mode gh READ;
-  -- callers keep it inside egress closures / write_mode guards so dry-run never runs it.
-  function M.control_issue_number(dedup_key, exec)
-    local list = M.gh_read(M.gh_issue_list_argv(M.tracker_repo(), M.candidate_label(), "number,body,author"), exec)
+  -- The locator scan page size; a result AT the cap means the view may be TRUNCATED
+  -- and an older control issue could be missed.
+  local LOCATOR_SCAN_LIMIT = 1000
+
+  -- Scan for the control issue by the stable candidate label + control marker
+  -- (bot-authored trust), across OPEN AND CLOSED issues (terminal issues are CLOSED as
+  -- done; the locator must still find them so a settled candidate is never re-created).
+  -- Returns { number = string|nil, truncated = bool }: truncated is true when the scan
+  -- is unreadable or at the page cap - "unsure" - so creation paths can fail CLOSED
+  -- (never create a possible duplicate on a blind scan). REAL-mode gh READ; callers
+  -- keep it inside egress closures / write_mode guards so dry-run never runs it.
+  function M.control_issue_scan(dedup_key, exec)
+    local list = M.gh_read(M.gh_issue_list_argv(M.tracker_repo(), M.candidate_label(),
+      "number,body,author", "all", LOCATOR_SCAN_LIMIT), exec)
     if type(list) ~= "table" then
-      return nil
+      return { number = nil, truncated = true }
     end
+    local truncated = #list >= LOCATOR_SCAN_LIMIT
     local marker = M.control_marker(dedup_key)
     local bot = M.bot_login()
     for _, issue in ipairs(list) do
       if M.trusted_marker(issue, marker, bot) then
-        return tostring(issue.number)
+        return { number = tostring(issue.number), truncated = truncated }
       end
     end
-    return nil
+    return { number = nil, truncated = truncated }
+  end
+
+  -- The plain locator: a string number or nil (nil on not-found AND on unsure -
+  -- consumers of this form only SKIP work on nil, which is fail-closed for them).
+  function M.control_issue_number(dedup_key, exec)
+    return M.control_issue_scan(dedup_key, exec).number
   end
 
   -- Adopt: idempotently create the control issue on the tracker with the stable
@@ -169,7 +194,11 @@ function S.install(M)
         return M.gh_issue_create_argv(M.tracker_repo(), M.control_title(dedup_key), path, create_labels)
       end,
       marker_present = function()
-        return M.control_issue_number(dedup_key) ~= nil
+        -- Fail CLOSED on an unsure scan (unreadable or possibly truncated): treating
+        -- "unsure" as "present" skips the create, so a blind scan can never produce a
+        -- duplicate control issue for a candidate that already has one.
+        local scan = M.control_issue_scan(dedup_key)
+        return scan.number ~= nil or scan.truncated == true
       end,
     })
   end
@@ -263,19 +292,63 @@ function S.install(M)
     return number
   end
 
-  -- Human progress line for a state (locale-driven) + small carried scalars. The state
-  -- marker (idempotency) is appended by core.egress, never here.
+  -- States that have a "what happens next" plan line (locale key suffix). Terminal
+  -- states carry no next step - the terminal tag + reason explain themselves.
+  local NEXT_STATES = {
+    diagnosed = true, implemented = true, dossier = true, cleared = true,
+    engaged = true, invited = true, proposed = true,
+  }
+
+  -- Bound + sanitize a free-text stage narrative for the board. Defense in depth: the
+  -- parse sources already neutralize the marker namespace, but EVERY free-text field
+  -- rendered into a bot-authored comment is re-sanitized here so no caller can forget
+  -- (a forged marker in a bot comment would spoof a future idempotency check).
+  local SUMMARY_LIMIT = 700
+  local function bounded(text)
+    local s = M.strip_marker_namespace(tostring(text):gsub("\r", ""))
+    if #s > SUMMARY_LIMIT then
+      return s:sub(1, SUMMARY_LIMIT) .. " …"
+    end
+    return s
+  end
+
+  -- Human progress block for a state: the locale heading, the stage's small facts as
+  -- bullets, the stage's bounded free-text narrative (what/how - e.g. diagnose EVIDENCE
+  -- or implement APPROACH), and the "Next:" plan line so the board reads as what
+  -- happened AND what the loop will do next. The state marker (idempotency) is appended
+  -- by core.egress, never here.
   function M.progress_body(dedup_key, state, ctx)
     ctx = ctx or {}
     local lines = { t("codex-saga.progress." .. tostring(state)) }
     if M.is_nonempty_string(ctx.root_cause) then
-      lines[#lines + 1] = "root_cause: " .. tostring(ctx.root_cause)
+      lines[#lines + 1] = "- root_cause: " .. M.strip_marker_namespace(ctx.root_cause)
+    end
+    if M.is_nonempty_string(ctx.files) then
+      lines[#lines + 1] = "- files: " .. M.strip_marker_namespace(ctx.files)
     end
     if M.is_nonempty_string(ctx.reason) then
-      lines[#lines + 1] = "reason: " .. tostring(ctx.reason)
+      lines[#lines + 1] = "- reason: " .. M.strip_marker_namespace(ctx.reason)
     end
     if M.is_nonempty_string(ctx.detail) then
-      lines[#lines + 1] = tostring(ctx.detail)
+      lines[#lines + 1] = "- " .. M.strip_marker_namespace(ctx.detail)
+    end
+    if M.is_nonempty_string(ctx.summary) then
+      lines[#lines + 1] = ""
+      lines[#lines + 1] = bounded(ctx.summary)
+    end
+    -- The multi-round deliberation transcript (audit log): larger bound than the
+    -- one-line summaries, sanitized line-block (codex-generated content).
+    if M.is_nonempty_string(ctx.transcript) then
+      local block = M.strip_marker_namespace(tostring(ctx.transcript):gsub("\r", ""))
+      if #block > 2000 then
+        block = block:sub(1, 2000) .. " …"
+      end
+      lines[#lines + 1] = ""
+      lines[#lines + 1] = block
+    end
+    if NEXT_STATES[tostring(state or "")] then
+      lines[#lines + 1] = ""
+      lines[#lines + 1] = "**Next**: " .. t("codex-saga.progress.next." .. tostring(state))
     end
     return table.concat(lines, "\n")
   end
@@ -324,6 +397,15 @@ function S.install(M)
     -- Reflect the current stage as a swapped label (real mode only; number resolved above).
     if M.write_mode() == "real" and number ~= nil then
       M.set_state_label(dedup_key, state, number)
+      -- CLOSE-AS-DONE: a terminal transition closes the control issue (best-effort;
+      -- pcall wraps the CALL, not just argv construction - a close hiccup must never
+      -- fail the transition). The label + markers persist on the closed issue, and all
+      -- locator/ledger scans are --state all, so the settled claim stays durable.
+      if CLOSE_ON_TERMINAL[tostring(state or "")] then
+        pcall(function()
+          M.run_argv(M.gh_issue_close_argv(M.tracker_repo(), tostring(number)))
+        end)
+      end
     end
     return intent
   end

@@ -18,9 +18,10 @@ function S.install(M)
       "Issue pointer: " .. ref,
       "Attempt to reproduce the reported behavior from the issue. Do not modify files.",
       "Then identify the most likely root cause location.",
-      "Respond with exactly two lines:",
+      "Respond with exactly three lines:",
       "REPRODUCED: yes   (or)   REPRODUCED: no",
       "ROOT_CAUSE: <path>:<line>   (omit if not reproduced)",
+      "EVIDENCE: <1-3 sentences on one line: what you observed, and why this location is the root cause (or why it could not be reproduced)>",
     }
     return table.concat(lines, "\n")
   end
@@ -42,12 +43,30 @@ function S.install(M)
     if trimmed == "" or trimmed:find("^<") ~= nil then
       return nil
     end
-    return trimmed
+    -- codex-derived text from public issue content: marker namespace neutralized so it
+    -- can never forge a bot-authored fkst marker downstream.
+    return M.strip_marker_namespace(trimmed)
+  end
+
+  -- Parse the EVIDENCE narrative (what was observed / why this is the root cause, or
+  -- why it did not reproduce). Returns the trimmed single-line summary, or nil when
+  -- absent or a template placeholder. Board detail only (posted as a progress
+  -- comment); NEVER carried on event payloads. Marker namespace neutralized.
+  function M.parse_evidence(stdout)
+    local raw = tostring(stdout or ""):match("EVIDENCE:%s*([^\r\n]+)")
+    if raw == nil then
+      return nil
+    end
+    local trimmed = M.trim(raw)
+    if trimmed == "" or trimmed:find("^<") ~= nil then
+      return nil
+    end
+    return M.strip_marker_namespace(trimmed)
   end
 
   -- Reproduce + diagnose on a fork worktree. opts.exec / opts.codex inject the
   -- exec_argv / spawn_codex_sync primitives for testing. Returns
-  -- { reproduced = bool, root_cause = string|nil }.
+  -- { reproduced = bool, root_cause = string|nil, evidence = string|nil }.
   function M.run_diagnosis(entity, fork_path, dedup_key, opts)
     opts = opts or {}
     local exec = opts.exec
@@ -76,6 +95,7 @@ function S.install(M)
     local stdout = (type(out) == "table" and out.stdout) or ""
     local reproduced = M.parse_reproduced(stdout)
     local root_cause = M.parse_root_cause(stdout)
+    local evidence = M.parse_evidence(stdout)
 
     -- Best-effort worktree cleanup (failure must not mask the diagnosis result).
     pcall(M.run_argv, {
@@ -83,7 +103,7 @@ function S.install(M)
       timeout = 60,
     }, exec)
 
-    return { reproduced = reproduced, root_cause = root_cause }
+    return { reproduced = reproduced, root_cause = root_cause, evidence = evidence }
   end
 end
 

@@ -76,8 +76,17 @@ local function act(event)
     crate = result.crate,
     picked_score = payload.score,
     exemplars_used = core.exemplar_refs(exemplars),
+    -- the codex-reported one-line fix approach (bounded, sanitized scalar - NOT a
+    -- diff/body): threaded to the gate so the consensus judges defend the real plan.
+    approach = result.approach,
   }
-  core.record_transition(dedup_key, "implemented", { detail = "fix branch " .. branch })
+  core.record_transition(dedup_key, "implemented", {
+    -- Board links: the fix branch on the fork + the exact upstream compare diff.
+    detail = "fix branch [" .. branch .. "](" .. core.branch_url(branch) .. ")"
+      .. " · [compare vs upstream](" .. core.compare_url(branch) .. ")",
+    files = result.files, -- codex-reported changed paths
+    summary = result.approach, -- codex's WHAT the fix changes + HOW the test proves it
+  })
   raise("codex_implemented", raised)
 end
 

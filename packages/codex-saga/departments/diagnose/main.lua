@@ -67,11 +67,18 @@ local function act(event)
       type = core.classify_type(payload.labels),
       root_cause = result.root_cause,
     })
-    core.record_transition(dedup_key, "needs_info", { reason = "not_reproduced", root_cause = result.root_cause })
+    core.record_transition(dedup_key, "needs_info", {
+      reason = "not_reproduced",
+      root_cause = result.root_cause,
+      summary = result.evidence, -- codex's WHY it could not be reproduced
+    })
     return nil
   end
 
-  core.record_transition(dedup_key, "diagnosed", { root_cause = result.root_cause })
+  core.record_transition(dedup_key, "diagnosed", {
+    root_cause = result.root_cause,
+    summary = result.evidence, -- codex's observed evidence for this root cause
+  })
   raise("codex_diagnosed", {
     schema = "codex-saga.diagnosed.v1",
     source_ref = entity,

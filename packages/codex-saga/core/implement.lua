@@ -247,9 +247,10 @@ function S.install(M)
       table.insert(lines, "  - " .. tostring(exemplar.ref or "(ref)"))
     end
     table.insert(lines, "Keep the change small (<=3 files / <=200 LOC), add a fail-before/pass-after test, and follow repo conventions.")
-    table.insert(lines, "Respond with exactly two lines:")
+    table.insert(lines, "Respond with exactly three lines:")
     table.insert(lines, "FIX_WRITTEN: yes   (or)   FIX_WRITTEN: no")
     table.insert(lines, "FILES: <comma-separated changed paths>   (omit if no fix)")
+    table.insert(lines, "APPROACH: <1-2 sentences on one line: what the fix changes and how the added test proves it>")
     return table.concat(lines, "\n")
   end
 
@@ -257,6 +258,38 @@ function S.install(M)
   function M.parse_fix_written(stdout)
     local verdict = tostring(stdout or ""):match("FIX_WRITTEN:%s*(%a+)")
     return verdict ~= nil and verdict:lower() == "yes"
+  end
+
+  -- The bounded-scalar cap for a parsed narrative line: `approach` is carried on the
+  -- codex_implemented payload (payload discipline: small scalars only) and re-fed into
+  -- the gate's judge prompts, so it MUST stay small.
+  local SCALAR_LIMIT = 300
+
+  -- Parse a single-line marker value ("FILES: ...", "APPROACH: ..."), rejecting empty
+  -- and template placeholders, BOUNDED to a small scalar. codex-derived text from
+  -- public issue content: marker namespace neutralized so it can never forge a
+  -- bot-authored fkst marker downstream.
+  local function parse_marker_line(stdout, marker)
+    local raw = tostring(stdout or ""):match(marker .. ":%s*([^\r\n]+)")
+    if raw == nil then
+      return nil
+    end
+    local trimmed = M.trim(raw)
+    if trimmed == "" or trimmed:find("^<") ~= nil then
+      return nil
+    end
+    if #trimmed > SCALAR_LIMIT then
+      trimmed = trimmed:sub(1, SCALAR_LIMIT) .. " …"
+    end
+    return M.strip_marker_namespace(trimmed)
+  end
+
+  function M.parse_files(stdout)
+    return parse_marker_line(stdout, "FILES")
+  end
+
+  function M.parse_approach(stdout)
+    return parse_marker_line(stdout, "APPROACH")
   end
 
   -- ---- the write-class fix effect (dry-run by default) -------------------------
@@ -313,7 +346,8 @@ function S.install(M)
     local out = codex({ prompt = req.prompt, worktree = worktree, timeout = 1800 })
     local stdout = (type(out) == "table" and out.stdout) or ""
     local written = M.parse_fix_written(stdout)
-    local result = { ok = written, mode = "real", branch = req.branch, crate = crate_path }
+    local result = { ok = written, mode = "real", branch = req.branch, crate = crate_path,
+      files = M.parse_files(stdout), approach = M.parse_approach(stdout) }
 
     if written then
       M.run_argv({ argv = { "git", "-C", worktree, "checkout", "-B", tostring(req.branch) }, timeout = 30 }, exec)
