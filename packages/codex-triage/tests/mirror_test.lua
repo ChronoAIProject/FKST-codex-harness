@@ -1,8 +1,10 @@
--- codex-triage MIRROR + fail-closed + top-N-cap tests. The reconcile producer
--- (scripts/reconcile_issues.py) writes the durable mirror OUT OF BAND; codex-triage
--- (stateless_adapter) only READS it. Asserts: the compact JSONL mirror parses (no
--- bodies); an absent mirror + no injection FAILS CLOSED (raises nothing, never an
--- in-tick live pull); and FKST_TRIAGE_MAX_CANDIDATES bounds the diagnose fan-out.
+-- codex-triage MIRROR + fail-closed + top-N-cap tests. The durable mirror has two
+-- producers sharing one checkpoint layout: scripts/reconcile_issues.py (out-of-band
+-- host cron/manual) and the in-package SLOW bootstrap (mirror_bootstrap_test.lua);
+-- score_dedup only ever SCORES a complete fresh mirror. Asserts: the compact JSONL
+-- mirror parses (no full bodies); an absent mirror + no injection FAILS CLOSED
+-- (raises nothing, never an in-tick full poll); and FKST_TRIAGE_MAX_CANDIDATES
+-- bounds the diagnose fan-out.
 -- G5: every *_test.lua must yield >=1 passing engine test.
 local core = require("core")
 local t = fkst.test
@@ -58,7 +60,9 @@ return {
   end,
 
   -- FAIL-CLOSED: no injected issues + no mirror -> raise NOTHING. There is no in-tick
-  -- live-poll path; the 126s poll must never run inside this 30s-stall department.
+  -- full-poll path; the 126s poll must never run inside this 30s-stall department.
+  -- (The bootstrap DOES try one paced page here, but the unmocked gh adapter fails
+  -- closed in test mode -> "retry" with zero side effects; candidates stay at zero.)
   test_score_dedup_fail_closed_without_mirror = function()
     local result = t.run_department("departments/score_dedup/main.lua", {
       queue = "codex_issue_poll_tick",

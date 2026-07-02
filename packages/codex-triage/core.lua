@@ -187,10 +187,12 @@ function M.load_clusters()
 end
 
 -- ---------------------------------------------------------------------------
--- issue MIRROR (read-only). The mirror is produced OUT-OF-BAND by
--- scripts/reconcile_issues.py, which owns all pagination/checkpoint/watermark
--- state. codex-triage is a `stateless_adapter`: it only READS the mirror + the
--- freshness stamp; it NEVER advances or repairs reconcile state.
+-- issue MIRROR (read side). The mirror has TWO interchangeable producers that
+-- share one checkpoint layout: scripts/reconcile_issues.py (out-of-band host
+-- cron/manual - the fast path) and the in-package SLOW bootstrap below (a few
+-- pages per tick, for runs with no host cron - e.g. a hosted session pod).
+-- These read helpers stay producer-agnostic: they only READ the mirror + the
+-- freshness stamp and never repair either producer's state.
 -- ---------------------------------------------------------------------------
 function M.mirror_path()
   local root = M.read_env("FKST_DURABLE_ROOT") or ".fkst/durable"
@@ -256,6 +258,398 @@ function M.mirror_state(opts)
     return nil
   end
   return parsed
+end
+
+-- ---------------------------------------------------------------------------
+-- mirror BOOTSTRAP (the in-package SLOW pull). When the mirror is absent or
+-- unusable, score_dedup advances THIS bootstrap a few bounded pages per tick
+-- instead of idling forever on "run scripts/reconcile_issues.py" (a hosted
+-- pod-per-session run has no out-of-band host cron, so the package must be able
+-- to refuel itself). Discipline:
+--   * SLOW BY DESIGN: at most FKST_TRIAGE_BOOTSTRAP_PAGES (default 3) pages per
+--     tick, and a page is only STARTED while elapsed + page-timeout fits inside
+--     FKST_TRIAGE_BOOTSTRAP_BUDGET (default 20s) - provably inside the
+--     department's 30s stall window. The 126s all-or-nothing poll still NEVER
+--     runs in-tick.
+--   * Checkpoint layout is IDENTICAL to scripts/reconcile_issues.py
+--     (checkpoint/page-%04d.jsonl) so either producer can run against the same
+--     durable root; the Lua side keeps its resume cursor in
+--     checkpoint/bootstrap_cursor.json (the python side globs page files, so the
+--     cursor is invisible to it). Concurrent producers are tolerated: page
+--     writes are idempotent by page number and the combine step dedupes.
+--   * Same COMPACT projection + validate-before-swap + atomic rename as the
+--     script: a malformed/degenerate checkpoint can never replace a last-good
+--     mirror (it resets and the pull restarts from page 1).
+--   * Candidates stay FAIL-CLOSED while bootstrapping: score_dedup raises
+--     NOTHING until a complete, fresh, non-partial mirror exists.
+-- Kill switch: FKST_TRIAGE_BOOTSTRAP=0 restores the pure fail-closed posture.
+-- ---------------------------------------------------------------------------
+
+local BOOTSTRAP_PER_PAGE = 100
+local BOOTSTRAP_BODY_EXCERPT = 1000 -- MUST match scripts/reconcile_issues.py BODY_EXCERPT
+local BOOTSTRAP_MIN_EXPECTED = 50 -- matches the script's --min-expected default
+local BOOTSTRAP_MAX_EXPECTED = 200000
+
+function M.bootstrap_enabled()
+  return M.read_env("FKST_TRIAGE_BOOTSTRAP") ~= "0"
+end
+
+local function bootstrap_root(opts)
+  return (opts and opts.root) or M.read_env("FKST_DURABLE_ROOT") or ".fkst/durable"
+end
+
+function M.mirror_checkpoint_dir(root)
+  return tostring(root or bootstrap_root(nil)) .. "/codex-issue-mirror/checkpoint"
+end
+
+function M.bootstrap_cursor_path(root)
+  return M.mirror_checkpoint_dir(root) .. "/bootstrap_cursor.json"
+end
+
+local function bootstrap_page_path(ckpt_dir, page)
+  return string.format("%s/page-%04d.jsonl", ckpt_dir, page)
+end
+
+local function shell_quote(s)
+  return "'" .. tostring(s):gsub("'", "'\\''") .. "'"
+end
+
+-- file.write cannot create directories; mkdir -p via the Lua stdlib (same
+-- pattern as codex-learn/core/io.lua). Best-effort + idempotent.
+local function ensure_dir(dir)
+  if type(os) == "table" and type(os.execute) == "function" then
+    pcall(os.execute, "mkdir -p " .. shell_quote(dir))
+  end
+end
+
+local function json_escape_string(value)
+  local s = tostring(value):gsub('[%c\\"]', function(c)
+    if c == "\\" then return "\\\\" end
+    if c == '"' then return '\\"' end
+    if c == "\n" then return "\\n" end
+    if c == "\r" then return "\\r" end
+    if c == "\t" then return "\\t" end
+    return string.format("\\u%04x", string.byte(c))
+  end)
+  return '"' .. s .. '"'
+end
+
+-- compact_issue: Lua port of the script's compact() projection - the SMALL model
+-- with a BOUNDED body excerpt (the rubric's anatomy score reads body[:600]).
+-- PR rows are excluded by the caller (bootstrap_fetch_page).
+function M.compact_issue(raw, repo)
+  local labels = {}
+  if type(raw.labels) == "table" then
+    for _, label in ipairs(raw.labels) do
+      if type(label) == "table" and type(label.name) == "string" then
+        table.insert(labels, label.name)
+      elseif type(label) == "string" then
+        table.insert(labels, label)
+      end
+    end
+  end
+  local body = raw.body
+  if type(body) ~= "string" then
+    body = ""
+  end
+  local reactions = 0
+  if type(raw.reactions) == "table" then
+    reactions = tonumber(raw.reactions.total_count) or 0
+  end
+  return {
+    number = raw.number,
+    title = type(raw.title) == "string" and raw.title or "",
+    body = body:sub(1, BOOTSTRAP_BODY_EXCERPT),
+    labels = labels,
+    reactions = reactions,
+    updated_at = type(raw.updated_at) == "string" and raw.updated_at or nil,
+    source_ref = { kind = "external", ref = tostring(repo) .. "#issues/" .. tostring(raw.number) },
+  }
+end
+
+-- The SDK is decode-only (JSON is the engine wire boundary), so the bootstrap
+-- owns a tiny encoder for its FIXED shapes - same approach as
+-- codex-saga/core/outcomes_store.lua. Key order is fixed for stable lines.
+local function encode_compact_issue(rec)
+  local labels = {}
+  for _, l in ipairs(rec.labels or {}) do
+    table.insert(labels, json_escape_string(l))
+  end
+  return "{"
+    .. '"number":' .. tostring(tonumber(rec.number) or 0)
+    .. ',"title":' .. json_escape_string(rec.title or "")
+    .. ',"body":' .. json_escape_string(rec.body or "")
+    .. ',"labels":[' .. table.concat(labels, ",") .. "]"
+    .. ',"reactions":' .. tostring(tonumber(rec.reactions) or 0)
+    .. ',"updated_at":' .. (rec.updated_at ~= nil and json_escape_string(rec.updated_at) or "null")
+    .. ',"source_ref":{"kind":"external","ref":' .. json_escape_string((rec.source_ref or {}).ref or "") .. "}"
+    .. "}"
+end
+
+function M.read_bootstrap_cursor(opts)
+  local path = M.bootstrap_cursor_path(bootstrap_root(opts))
+  if type(file) ~= "table" or type(file.read) ~= "function" then
+    return nil
+  end
+  if type(file.exists) == "function" and not file.exists(path) then
+    return nil
+  end
+  local ok, text = pcall(file.read, path)
+  if not ok or type(text) ~= "string" or text == "" then
+    return nil
+  end
+  if type(json) ~= "table" or type(json.decode) ~= "function" then
+    return nil
+  end
+  local ok2, parsed = pcall(json.decode, text)
+  if not ok2 or type(parsed) ~= "table" then
+    return nil
+  end
+  local next_page = tonumber(parsed.next_page)
+  if next_page == nil or next_page < 1 then
+    return nil
+  end
+  return { next_page = math.floor(next_page), started_epoch = tonumber(parsed.started_epoch) }
+end
+
+function M.write_bootstrap_cursor(cursor, opts)
+  local ckpt = M.mirror_checkpoint_dir(bootstrap_root(opts))
+  ensure_dir(ckpt)
+  local line = '{"next_page":' .. tostring(tonumber(cursor.next_page) or 1)
+    .. ',"started_epoch":' .. tostring(tonumber(cursor.started_epoch) or "null") .. "}"
+  local ok = pcall(file.write, M.bootstrap_cursor_path(bootstrap_root(opts)), line)
+  return ok
+end
+
+-- reset_bootstrap: drop the cursor + every checkpointed page below it so the
+-- next tick restarts the pull from page 1 (self-healing after a corrupt or
+-- expired checkpoint). Best-effort; os.remove failures are ignored.
+function M.reset_bootstrap(cursor, opts)
+  local ckpt = M.mirror_checkpoint_dir(bootstrap_root(opts))
+  local last_page = (tonumber(cursor and cursor.next_page) or 1) - 1
+  if type(os) == "table" and type(os.remove) == "function" then
+    for page = 1, last_page do
+      pcall(os.remove, bootstrap_page_path(ckpt, page))
+    end
+    pcall(os.remove, M.bootstrap_cursor_path(bootstrap_root(opts)))
+  end
+end
+
+-- bootstrap_fetch_page: fetch ONE page of open issues (argv adapter, injectable
+-- for tests). Returns (rows, is_end, err): rows=nil on a transient failure (the
+-- caller retries the SAME page next tick), is_end=true past the last page.
+function M.bootstrap_fetch_page(repo, page, opts)
+  opts = opts or {}
+  local run = opts.exec
+  if run == nil and type(exec_argv) == "function" then
+    run = exec_argv
+  end
+  if run == nil then
+    return nil, false, "no exec adapter"
+  end
+  local timeout = tonumber(M.read_env("FKST_TRIAGE_BOOTSTRAP_PAGE_TIMEOUT")) or 15
+  local endpoint = string.format(
+    "repos/%s/issues?state=open&per_page=%d&page=%d&sort=created&direction=asc",
+    tostring(repo), BOOTSTRAP_PER_PAGE, page)
+  local ok, result = pcall(run, { argv = { "gh", "api", endpoint }, timeout = timeout })
+  if not ok or type(result) ~= "table" or tonumber(result.exit_code) ~= 0 then
+    local err = "page fetch failed"
+    if type(result) == "table" and result.stderr ~= nil then
+      err = tostring(result.stderr):sub(1, 200)
+    elseif not ok then
+      err = tostring(result):sub(1, 200)
+    end
+    return nil, false, err
+  end
+  if type(json) ~= "table" or type(json.decode) ~= "function" then
+    return nil, false, "no json decoder"
+  end
+  local ok2, raw = pcall(json.decode, result.stdout)
+  if not ok2 or type(raw) ~= "table" then
+    return nil, false, "unparseable page json"
+  end
+  if #raw == 0 then
+    return {}, true, nil -- past the last page
+  end
+  local rows = {}
+  for _, item in ipairs(raw) do
+    -- PRs come back on the issues endpoint - exclude them (same as the script).
+    if type(item) == "table" and item.pull_request == nil and item.number ~= nil then
+      table.insert(rows, M.compact_issue(item, repo))
+    end
+  end
+  return rows, false, nil
+end
+
+-- finalize_bootstrap: combine checkpointed pages 1..next_page-1 IN ORDER,
+-- re-validate EVERY line (the checkpoint may come from an older run or from the
+-- python producer), dedupe pagination-drift duplicates by issue number (last
+-- occurrence wins, first-seen order), and only then swap the live mirror +
+-- freshness state. Returns (count) or (nil, reason) WITHOUT touching the
+-- last-good mirror.
+function M.finalize_bootstrap(cursor, opts)
+  opts = opts or {}
+  local clock = opts.clock or M.now_epoch
+  local now_s = clock()
+  if now_s == nil then
+    -- without a readable clock the state stamp would be permanently unusable
+    -- (score_dedup rejects a stamp-less mirror) - never swap blind.
+    return nil, "clock unavailable"
+  end
+  local root = bootstrap_root(opts)
+  local ckpt = M.mirror_checkpoint_dir(root)
+  local last_page = (tonumber(cursor.next_page) or 1) - 1
+  local min_expected = tonumber(opts.min_expected) or BOOTSTRAP_MIN_EXPECTED
+  local order, dedup = {}, {}
+  for page = 1, last_page do
+    local ok, text = pcall(file.read, bootstrap_page_path(ckpt, page))
+    if not ok or type(text) ~= "string" then
+      return nil, "missing checkpoint page " .. page
+    end
+    for line in text:gmatch("[^\n]+") do
+      local ok2, rec = pcall(json.decode, line)
+      if not ok2 or type(rec) ~= "table" or rec.number == nil
+        or type(rec.source_ref) ~= "table" or rec.source_ref.ref == nil then
+        return nil, "malformed checkpoint line (page " .. page .. ")"
+      end
+      if type(rec.body) == "string" and #rec.body > 2 * BOOTSTRAP_BODY_EXCERPT then
+        return nil, "body excerpt too large (page " .. page .. ")"
+      end
+      if dedup[rec.number] == nil then
+        table.insert(order, rec.number)
+      end
+      dedup[rec.number] = line
+    end
+  end
+  local count = #order
+  if count < min_expected then
+    return nil, string.format("%d issues < min %d", count, min_expected)
+  end
+  if count > BOOTSTRAP_MAX_EXPECTED then
+    return nil, string.format("%d issues > max %d", count, BOOTSTRAP_MAX_EXPECTED)
+  end
+  local lines = {}
+  for _, num in ipairs(order) do
+    table.insert(lines, dedup[num])
+  end
+  local model = root .. "/codex-issue-mirror/open_issues.compact.jsonl"
+  local body = table.concat(lines, "\n") .. "\n"
+  local tmp = model .. ".tmp"
+  local ok_tmp = pcall(file.write, tmp, body)
+  if not ok_tmp then
+    return nil, "tmp write failed"
+  end
+  local renamed = false
+  if type(os) == "table" and type(os.rename) == "function" then
+    local ok_mv, res = pcall(os.rename, tmp, model)
+    renamed = ok_mv and res == true
+  end
+  if not renamed then
+    -- fallback: direct write of the ALREADY-validated content (non-atomic).
+    local ok_direct = pcall(file.write, model, body)
+    if not ok_direct then
+      return nil, "mirror write failed"
+    end
+    if type(os) == "table" and type(os.remove) == "function" then
+      pcall(os.remove, tmp)
+    end
+  end
+  local iso = ""
+  if type(os) == "table" and type(os.date) == "function" then
+    local ok_date, formatted = pcall(os.date, "!%Y-%m-%dT%H:%M:%SZ", now_s)
+    if ok_date and type(formatted) == "string" then
+      iso = formatted
+    end
+  end
+  local started = tonumber(cursor.started_epoch)
+  local state_line = '{"model_version":"issue-mirror.v1"'
+    .. ',"source_repo":' .. json_escape_string(opts.repo or M.contrib_target())
+    .. ',"count":' .. tostring(count)
+    .. ',"fresh_as_of_epoch":' .. tostring(math.floor(now_s))
+    .. ',"fresh_as_of":' .. json_escape_string(iso)
+    .. ',"reconcile_seconds":' .. tostring(started ~= nil and math.floor(now_s - started) or 0)
+    .. ',"partial":false'
+    .. ',"producer":"codex-triage.bootstrap"}'
+  local ok_state = pcall(file.write, root .. "/codex-issue-mirror/reconcile_state.json", state_line)
+  if not ok_state then
+    return nil, "state write failed"
+  end
+  M.reset_bootstrap(cursor, opts) -- success: clear the checkpoint + cursor
+  return count
+end
+
+-- bootstrap_advance: one tick's paced slice of the pull. Resumes the persisted
+-- cursor (restarting a pull whose START is older than the mirror freshness
+-- budget, so days-old pages never splice into a "fresh" mirror), fetches up to
+-- the per-tick page cap within the wall-clock budget, and finalizes when the
+-- last page is reached. Every failure is fail-SOFT (log-and-retry next tick):
+-- a transient gh error must never crash the pipeline wrap.
+-- Returns {status="complete"|"progress"|"retry"|"failed"|"no_clock", ...}.
+function M.bootstrap_advance(opts)
+  opts = opts or {}
+  local clock = opts.clock or M.now_epoch
+  local tick_start = clock()
+  if tick_start == nil then
+    return { status = "no_clock", pages = 0 }
+  end
+  -- env knobs, opts-overridable for the hermetic unit tests (which cannot set env)
+  local budget = tonumber(opts.budget) or tonumber(M.read_env("FKST_TRIAGE_BOOTSTRAP_BUDGET")) or 20
+  local page_timeout = tonumber(opts.page_timeout)
+    or tonumber(M.read_env("FKST_TRIAGE_BOOTSTRAP_PAGE_TIMEOUT")) or 15
+  local max_pages = tonumber(opts.max_pages) or tonumber(M.read_env("FKST_TRIAGE_BOOTSTRAP_PAGES")) or 3
+  local max_age = tonumber(M.read_env("FKST_TRIAGE_MIRROR_MAX_AGE")) or 172800
+  local repo = opts.repo or M.contrib_target()
+
+  local cursor = M.read_bootstrap_cursor(opts)
+  if cursor ~= nil then
+    local began = tonumber(cursor.started_epoch)
+    if began == nil or (tick_start - began) > max_age then
+      M.reset_bootstrap(cursor, opts)
+      cursor = nil
+    end
+  end
+  if cursor == nil then
+    cursor = { next_page = 1, started_epoch = tick_start }
+  end
+
+  local ckpt = M.mirror_checkpoint_dir(bootstrap_root(opts))
+  local pages_done = 0
+  while pages_done < max_pages do
+    -- never START a page that could overrun the budget: elapsed plus a
+    -- worst-case page_timeout fetch must fit, so the 30s stall window holds.
+    local now_s = clock()
+    if now_s == nil or (now_s - tick_start) + page_timeout > budget then
+      break
+    end
+    local rows, is_end, err = M.bootstrap_fetch_page(repo, cursor.next_page, opts)
+    if rows == nil then
+      -- transient failure: the cursor stays on this page; retry next tick.
+      return { status = "retry", pages = pages_done, next_page = cursor.next_page, error = err }
+    end
+    if is_end then
+      local count, reason = M.finalize_bootstrap(cursor, opts)
+      if count == nil then
+        M.reset_bootstrap(cursor, opts)
+        return { status = "failed", pages = pages_done, error = reason }
+      end
+      return { status = "complete", pages = pages_done, count = count }
+    end
+    local page_lines = {}
+    for _, rec in ipairs(rows) do
+      table.insert(page_lines, encode_compact_issue(rec))
+    end
+    ensure_dir(ckpt)
+    local ok_page = pcall(file.write, bootstrap_page_path(ckpt, cursor.next_page),
+      table.concat(page_lines, "\n") .. "\n")
+    if not ok_page then
+      return { status = "retry", pages = pages_done, next_page = cursor.next_page,
+        error = "checkpoint write failed" }
+    end
+    cursor.next_page = cursor.next_page + 1
+    pages_done = pages_done + 1
+    M.write_bootstrap_cursor(cursor, opts)
+  end
+  return { status = "progress", pages = pages_done, next_page = cursor.next_page }
 end
 
 -- Current epoch seconds via the engine's portable `now()` seam (sdk_basic; unix seconds) -

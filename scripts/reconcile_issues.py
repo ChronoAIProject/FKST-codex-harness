@@ -7,7 +7,12 @@
 # proofs + workflow.saga code) - mis-modeling a mirror. So the reconcile lives here as an
 # operational producer (host cron/manual), and `codex-triage` (stateless_adapter) READS the mirror.
 #
-# It owns ALL reconcile state. codex-triage owns NONE - it never advances/repairs the watermark.
+# TWO producers, ONE checkpoint layout: this script is the FAST path (full pull in one run,
+# host cron/manual). When no host cron exists (e.g. a hosted session pod), codex-triage's SLOW
+# in-package bootstrap (core.bootstrap_advance, a few pages per 5m tick) builds the same
+# checkpoint/page-*.jsonl files and the same validated mirror + state. The Lua side keeps its
+# resume cursor in checkpoint/bootstrap_cursor.json, which this script ignores (and both sides
+# tolerate the other's leftovers: page writes are idempotent by page number, combines dedupe).
 #
 # Output (gitignored durable runtime, NEVER committed, NEVER data/):
 #   $FKST_DURABLE_ROOT/codex-issue-mirror/open_issues.compact.jsonl   (one compact issue per line)

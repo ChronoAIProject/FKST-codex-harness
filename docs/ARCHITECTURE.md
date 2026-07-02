@@ -38,18 +38,24 @@ _As of 2026-07-01. Authoritative design specs: `fkst-codex-harness-architecture.
   order (**score → bin → ATTEMPT → dedup**), and raises `codex_candidate`
   `{source_ref, dedup_key, schema, score}` for cluster representatives that bin ATTEMPT.
   Discovery source precedence: injected `payload.issues` → the durable **issue mirror**
-  → **fail-closed** (raise nothing + log; never an in-tick live pull). A top-N cap
+  → **bootstrap + fail-closed** (raise nothing + log, while the in-package slow
+  bootstrap advances a few pages; never an in-tick full pull). A top-N cap
   (`FKST_TRIAGE_MAX_CANDIDATES`, default 5) bounds the downstream diagnose fan-out.
-- **Issue mirror (out-of-band reconcile).** The full paginated open-issue poll is NOT
-  run inside the 30s-stall tick — at `openai/codex` scale (~8k issues, ~126s) that
-  times out and starves discovery. `scripts/reconcile_issues.py` (an operational
-  producer, run on an N-day cadence) does the resumable page-by-page pull with
-  checkpoint/retry/**validate-before-swap** and atomically writes the compact mirror
-  `{source_ref, score-inputs, labels, reactions, updated_at}` (NEVER bodies) to
-  `$FKST_DURABLE_ROOT/codex-issue-mirror/` (gitignored, never `data/`). It owns all
-  pagination/watermark state; `codex-triage` stays a `stateless_adapter` that only
-  reads the mirror + freshness stamp. (No `stateful_adapter` class exists, and a mirror
-  is not a saga — so this is a script, not a package.) A stale mirror fails closed.
+- **Issue mirror (two producers, one layout).** The full paginated open-issue poll is
+  NOT run inside the 30s-stall tick — at `openai/codex` scale (~8k issues, ~126s) that
+  times out and starves discovery. The **fast path** is `scripts/reconcile_issues.py`
+  (an operational producer, host cron/manual, N-day cadence): a resumable page-by-page
+  pull with checkpoint/retry/**validate-before-swap** that atomically writes the
+  compact mirror `{source_ref, score-inputs, labels, reactions, updated_at}` (NEVER
+  full bodies) to `$FKST_DURABLE_ROOT/codex-issue-mirror/` (gitignored, never `data/`).
+  The **slow path** is the in-package bootstrap (`core.bootstrap_advance`): when the
+  mirror is missing/stale/partial, `score_dedup` pulls a few bounded pages per 5m tick
+  (defaults: 3 pages, 20s budget — provably inside the stall window; ~2h to first
+  mirror at 8k issues) into the SAME `checkpoint/page-*.jsonl` layout, then applies the
+  same validate-before-swap. This is what fuels a hosted pod-per-session run, which has
+  no host cron. `FKST_TRIAGE_BOOTSTRAP=0` disables the slow path (pure fail-closed).
+  A stale/partial mirror still fails closed — candidates only ever come from a
+  complete, fresh mirror.
 - This is **issue discovery grounded in successful linked-PR issues**: the rubric is
   derived from PR-linked wins vs `not_planned` losses, keyed on *fixed-by-linked-PR*,
   never `state_reason=completed`.
