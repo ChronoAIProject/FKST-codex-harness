@@ -334,6 +334,31 @@ local function json_escape_string(value)
   return '"' .. s .. '"'
 end
 
+-- utf8_bounded_prefix: truncate `s` to at most `max_bytes` bytes WITHOUT splitting
+-- a multi-byte UTF-8 character. Lua string.sub cuts on BYTE offsets, so a naive
+-- body:sub(1, N) can slice through a codepoint and leave an invalid trailing
+-- sequence. The engine's file.write is UTF-8-only (Lua string -> Rust String) and
+-- rejects the WHOLE page on the first invalid byte, so the mirror checkpoint could
+-- never persist and the bootstrap looped forever raising no candidates. Trimming
+-- back to the last complete character keeps the excerpt valid UTF-8 and still
+-- within the byte budget the readback validation caps (2 * BOOTSTRAP_BODY_EXCERPT).
+local function utf8_bounded_prefix(s, max_bytes)
+  if #s <= max_bytes then
+    return s
+  end
+  local cut = max_bytes
+  -- Continuation bytes are 0x80..0xBF; if the byte just past the cut is one, the
+  -- cut landed inside a character - walk back to that character's lead byte.
+  while cut > 0 do
+    local nxt = string.byte(s, cut + 1)
+    if nxt == nil or nxt < 0x80 or nxt >= 0xC0 then
+      break
+    end
+    cut = cut - 1
+  end
+  return string.sub(s, 1, cut)
+end
+
 -- compact_issue: Lua port of the script's compact() projection - the SMALL model
 -- with a BOUNDED body excerpt (the rubric's anatomy score reads body[:600]).
 -- PR rows are excluded by the caller (bootstrap_fetch_page).
@@ -359,7 +384,7 @@ function M.compact_issue(raw, repo)
   return {
     number = raw.number,
     title = type(raw.title) == "string" and raw.title or "",
-    body = body:sub(1, BOOTSTRAP_BODY_EXCERPT),
+    body = utf8_bounded_prefix(body, BOOTSTRAP_BODY_EXCERPT),
     labels = labels,
     reactions = reactions,
     updated_at = type(raw.updated_at) == "string" and raw.updated_at or nil,

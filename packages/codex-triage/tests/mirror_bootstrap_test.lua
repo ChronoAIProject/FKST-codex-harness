@@ -148,6 +148,31 @@ return {
     t.eq(rows[1].source_ref.ref, "openai/codex#issues/9201")
   end,
 
+  -- REGRESSION: a BYTE-offset body:sub() can split a multi-byte UTF-8 character,
+  -- leaving an invalid trailing sequence that the engine's UTF-8-only file.write
+  -- rejects ("invalid utf-8 sequence") - which made the checkpoint page write
+  -- fail every tick, so the mirror never persisted and NO candidates were raised.
+  -- The excerpt must stop on a character boundary and stay valid UTF-8.
+  test_body_excerpt_never_splits_a_multibyte_char = function()
+    -- "€" = 3 bytes (0xE2 0x82 0xAC). Straddle the bound: 998 ASCII puts the char
+    -- at bytes 999..1001, so a byte cut at 1000 lands INSIDE it.
+    local euro = "\226\130\172"
+    local straddle = string.rep("a", 998) .. euro .. "xyz"
+    local rec = core.compact_issue({ number = 1, title = "t", body = straddle }, "openai/codex")
+    t.eq(rec.body, string.rep("a", 998)) -- the split char is dropped WHOLE
+    t.eq(#rec.body, 998)                 -- ...leaving a valid, shorter excerpt
+
+    -- A character that FITS exactly at the bound is kept intact (997 + 3 = 1000).
+    local fits = string.rep("a", 997) .. euro .. "xyz"
+    local rec2 = core.compact_issue({ number = 2, title = "t", body = fits }, "openai/codex")
+    t.eq(rec2.body, string.rep("a", 997) .. euro)
+    t.eq(#rec2.body, 1000)
+
+    -- Pure ASCII still bounds to exactly BODY_EXCERPT (unchanged behavior).
+    local rec3 = core.compact_issue({ number = 3, title = "t", body = string.rep("x", 1500) }, "openai/codex")
+    t.eq(#rec3.body, 1000)
+  end,
+
   -- The wall-clock budget stops a round BEFORE a page that could overrun the
   -- stall window: elapsed + page_timeout must fit inside the budget.
   test_bootstrap_budget_stops_round_early = function()
