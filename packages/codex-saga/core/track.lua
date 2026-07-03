@@ -86,6 +86,15 @@ function S.install(M)
       -- Iterative-deliberation signals (rounds run + how convergence was reached).
       consensus_rounds = payload.consensus_rounds,
       converge_mode = payload.converge_mode,
+      -- Invite-recovery rehydration fields (integrity): carry the diagnose-time verification
+      -- + branch-liveness into EVERY durable record. `load_engaged_verification` is
+      -- latest-wins by dedup_key, so once this proposed/tracked record supersedes the
+      -- engaged-verification row, a later invite-recovery tick must still find these facts
+      -- here - else open_pr's fail-closed preflight would wrongly refuse a genuinely
+      -- verified, invited candidate (Codex review). Carried on the payload via LEARNING_KEYS.
+      root_cause_verified = payload.root_cause_verified,
+      demo_branch = payload.demo_branch,
+      simulated = payload.simulated,
     }
   end
 

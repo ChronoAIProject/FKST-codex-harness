@@ -50,6 +50,23 @@ return {
     tk.eq(#outcome.area_labels, 0)
   end,
 
+  -- Invite-recovery rehydration (Codex review): the tracked/proposed §5 record must CARRY
+  -- root_cause_verified / demo_branch / simulated so that once it supersedes the earlier
+  -- engaged-verification row (latest-wins by dedup_key), a later invite-recovery tick can
+  -- still rehydrate the verification fact for open_pr's fail-closed preflight.
+  test_build_outcome_carries_invite_recovery_fields = function()
+    local outcome = core.build_outcome({
+      source_ref = candidate_ref(),
+      picked_score = 0.73,
+      root_cause_verified = true,
+      demo_branch = "codex-saga/fix-openai-codex-1234",
+      simulated = false,
+    })
+    tk.eq(outcome.root_cause_verified, true)
+    tk.eq(outcome.demo_branch, "codex-saga/fix-openai-codex-1234")
+    tk.eq(outcome.simulated, false)
+  end,
+
   -- type classification precedence: bug, enhancement, else other.
   test_classify_type_precedence = function()
     tk.eq(core.classify_type({ "bug", "exec" }), "bug")
