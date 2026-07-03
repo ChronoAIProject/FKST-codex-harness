@@ -9,6 +9,11 @@ return {
     tk.eq(core.write_mode(), "dry-run")
   end,
 
+  test_upstream_engagement_hold_is_time_based = function()
+    tk.eq(core.upstream_engagement_held(), false)
+    tk.eq(core.upstream_engagement_hold_until(), nil)
+  end,
+
   -- A write-class egress in dry-run records + returns an intent with NO external
   -- mutation: no exec_argv command is performed.
   test_egress_write_dry_run_returns_intent_without_exec = function()

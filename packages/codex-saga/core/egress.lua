@@ -30,6 +30,48 @@ function S.install(M)
     return M.read_env("FKST_GITHUB_WRITE") == "1" and "real" or "dry-run"
   end
 
+  function M.upstream_engagement_hold_until()
+    return M.read_env("FKST_UPSTREAM_ENGAGE_HOLD_UNTIL")
+  end
+
+  local function iso8601_to_epoch(s)
+    if type(s) ~= "string" then
+      return nil
+    end
+    local y, mo, d, h, mi, sec = s:match("^(%d+)%-(%d+)%-(%d+)T(%d+):(%d+):(%d+)")
+    if y == nil or type(os) ~= "table" or type(os.time) ~= "function" or type(os.date) ~= "function" then
+      return nil
+    end
+    local ok, epoch = pcall(function()
+      local as_local = os.time({
+        year = tonumber(y),
+        month = tonumber(mo),
+        day = tonumber(d),
+        hour = tonumber(h),
+        min = tonumber(mi),
+        sec = tonumber(sec),
+      })
+      local offset = os.difftime(as_local, os.time(os.date("!*t", as_local)))
+      return as_local + offset
+    end)
+    if not ok then
+      return nil
+    end
+    return epoch
+  end
+
+  function M.upstream_engagement_held()
+    local until_ts = M.upstream_engagement_hold_until()
+    if until_ts == nil then
+      return false
+    end
+    local until_epoch = iso8601_to_epoch(until_ts)
+    if until_epoch == nil then
+      return true
+    end
+    return os.time() < until_epoch
+  end
+
   -- ---- gh / git argv builders (program head only via the adapter) -------------
   function M.gh_issue_comment_argv(repo, number, body_file)
     return {

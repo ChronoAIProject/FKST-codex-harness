@@ -28,6 +28,15 @@ local function raise_payload(result, suffix)
   return nil
 end
 
+local function command_contains(fragment)
+  for _, call in ipairs(tk.command_calls() or {}) do
+    if tostring(call.rendered or ""):find(fragment, 1, true) ~= nil then
+      return true
+    end
+  end
+  return false
+end
+
 -- Escape a Lua string for embedding inside a JSON string literal (tests build gh
 -- read fixtures without a json encoder).
 local function json_escape(s)
@@ -37,6 +46,8 @@ end
 local function candidate_ref()
   return { kind = "external", ref = "openai/codex#issues/1234" }
 end
+
+local FUTURE_HOLD = "2999-01-01T00:00:00Z"
 
 return {
   -- ---- pure helpers ---------------------------------------------------------
@@ -383,6 +394,42 @@ return {
     tk.eq(#tk.command_calls(), 0)
   end,
 
+  -- Operator hold: keep doing local/fork/tracker work, but do not publish an upstream
+  -- openai/codex engagement comment or advance into invite/PR while the hold is active.
+  test_engage_hold_does_not_raise_engaged = function()
+    local result = tk.run_department("departments/engage/main.lua", {
+      queue = "codex_cleared",
+      payload = {
+        schema = "codex-saga.cleared.v1",
+        dedup_key = "codex-triage:candidate:openai/codex#1234",
+        source_ref = candidate_ref(),
+        root_cause = "src/exec/mod.rs:88",
+        labels = { "bug" },
+        score = 0.73,
+      },
+    }, { env = { FKST_UPSTREAM_ENGAGE_HOLD_UNTIL = FUTURE_HOLD } })
+    tk.eq(result.exit_code, 0)
+    tk.eq(raises_of(result, "codex_engaged"), 0)
+    tk.eq(#tk.command_calls(), 0)
+  end,
+
+  test_expired_engage_hold_allows_engaged = function()
+    local result = tk.run_department("departments/engage/main.lua", {
+      queue = "codex_cleared",
+      payload = {
+        schema = "codex-saga.cleared.v1",
+        dedup_key = "codex-triage:candidate:openai/codex#1234",
+        source_ref = candidate_ref(),
+        root_cause = "src/exec/mod.rs:88",
+        labels = { "bug" },
+        score = 0.73,
+      },
+    }, { env = { FKST_UPSTREAM_ENGAGE_HOLD_UNTIL = "2000-01-01T00:00:00Z" } })
+    tk.eq(result.exit_code, 0)
+    tk.is_true(raises_of(result, "codex_engaged") >= 1)
+    tk.eq(#tk.command_calls(), 0)
+  end,
+
   -- ---- invite_watch ---------------------------------------------------------
   test_invite_watch_tick_without_invite_does_not_raise = function()
     local result = tk.run_department("departments/invite_watch/main.lua", {
@@ -444,6 +491,54 @@ return {
     tk.eq(payload.control_issue, "7")
   end,
 
+  test_invite_watch_tick_terminalizes_expired_no_invite = function()
+    local dedup = "codex-triage:candidate:openai/codex#1234"
+    local original_ref = "openai/codex#issues/1234"
+    local body = core.control_marker(dedup) .. "\n"
+      .. core.source_marker(dedup, { kind = "external", ref = original_ref })
+    tk.mock_command("gh issue list", {
+      stdout = '[{"number":7,"updatedAt":"2000-01-01T00:00:00Z","author":{"login":"codex-bot"},"body":"'
+        .. json_escape(body) .. '"}]',
+    })
+    tk.mock_command("gh issue view", { stdout = '{"assignees":[],"comments":[]}' })
+    tk.mock_command("gh issue comment", { stdout = "https://github.com/ChronoAIProject/FKST-codex-harness/issues/7#issuecomment-1" })
+    tk.mock_command("gh issue edit", { stdout = "" })
+    tk.mock_command("gh issue close", { stdout = "" })
+    local result = tk.run_department("departments/invite_watch/main.lua", {
+      queue = "codex_invite_watch_tick",
+      payload = {},
+    }, { env = {
+      FKST_GITHUB_BOT_LOGIN = "codex-bot",
+      FKST_GITHUB_WRITE = "1",
+      FKST_INVITE_WAIT_SECONDS = "1",
+    } })
+    tk.eq(result.exit_code, 0)
+    tk.eq(raises_of(result, "codex_invited"), 0)
+    tk.is_true(command_contains("issue comment 7 --repo ChronoAIProject/FKST-codex-harness"))
+  end,
+
+  test_invite_watch_tick_keeps_fresh_no_invite_open = function()
+    local dedup = "codex-triage:candidate:openai/codex#1234"
+    local body = core.control_marker(dedup) .. "\n"
+      .. core.source_marker(dedup, { kind = "external", ref = "openai/codex#issues/1234" })
+    tk.mock_command("gh issue list", {
+      stdout = '[{"number":7,"updatedAt":"2999-01-01T00:00:00Z","author":{"login":"codex-bot"},"body":"'
+        .. json_escape(body) .. '"}]',
+    })
+    tk.mock_command("gh issue view", { stdout = '{"assignees":[],"comments":[]}' })
+    local result = tk.run_department("departments/invite_watch/main.lua", {
+      queue = "codex_invite_watch_tick",
+      payload = {},
+    }, { env = {
+      FKST_GITHUB_BOT_LOGIN = "codex-bot",
+      FKST_INVITE_WAIT_SECONDS = "1",
+    } })
+    tk.eq(result.exit_code, 0)
+    tk.eq(raises_of(result, "codex_invited"), 0)
+    tk.eq(tostring(result.stdout or ""):find("progress%-needs_invite"), nil)
+    tk.eq(tostring(result.stderr or ""):find("progress%-needs_invite"), nil)
+  end,
+
   -- ---- open_pr --------------------------------------------------------------
   -- HARD precondition: no recorded invite -> REFUSE (no codex_proposed).
   test_open_pr_refuses_without_invite = function()
@@ -497,6 +592,22 @@ return {
     local payload = raise_payload(result, "codex_proposed")
     tk.eq(payload.advocate_verdict, "pass")
     tk.is_true(type(payload.exemplars_used) == "table")
+  end,
+
+  test_open_pr_hold_blocks_upstream_pr_even_with_invite = function()
+    tk.mock_command("gh issue view", { stdout = '{"assignees":[{"login":"bolinfest"}],"comments":[]}' })
+    local result = tk.run_department("departments/open_pr/main.lua", {
+      queue = "codex_invited",
+      payload = {
+        schema = "codex-saga.invited.v1",
+        dedup_key = "codex-triage:candidate:openai/codex#1234",
+        source_ref = candidate_ref(),
+        control_issue = "7",
+        demo_branch = "codex-saga/fix-openai-codex-1234",
+      },
+    }, { env = { FKST_UPSTREAM_ENGAGE_HOLD_UNTIL = FUTURE_HOLD } })
+    tk.eq(result.exit_code, 0)
+    tk.eq(raises_of(result, "codex_proposed"), 0)
   end,
 
   -- ---- track (TERMINAL recorder) --------------------------------------------

@@ -44,6 +44,19 @@ local function act(event)
     error("codex-saga/engage: could not establish the tracker control issue; refusing to post an untracked public engagement")
   end
 
+  if core.upstream_engagement_held() then
+    local until_ts = core.upstream_engagement_hold_until()
+    log.info("codex-saga/engage: upstream engagement hold active until "
+      .. tostring(until_ts) .. "; not posting to " .. tostring(candidate.repo))
+    core.record_transition(dedup_key, "cleared", {
+      control_issue = control_issue,
+      summary = "upstream engagement hold active until " .. tostring(until_ts)
+        .. "; fix/dossier work may continue, but no comment is posted to "
+        .. tostring(candidate.repo) .. " during the hold.",
+    })
+    return nil
+  end
+
   -- Outward dossier comment on the openai/codex candidate issue. The body ALWAYS
   -- includes the AI-disclosure line; the marker gates the genuinely-once post. The
   -- intent is captured so the posted comment URL (gh stdout, real mode) lands on the

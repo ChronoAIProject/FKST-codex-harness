@@ -33,6 +33,18 @@ local function act(event)
     return nil
   end
 
+  if core.upstream_engagement_held() then
+    log.info("codex-saga/open_pr: upstream engagement hold active until "
+      .. tostring(core.upstream_engagement_hold_until()) .. "; not opening PR or CLA comment")
+    core.record_transition(dedup_key, "invited", {
+      control_issue = payload.control_issue,
+      summary = "upstream engagement hold active until "
+        .. tostring(core.upstream_engagement_hold_until())
+        .. "; maintainer invite is preserved, but no PR or CLA comment is posted during the hold.",
+    })
+    return nil
+  end
+
   -- Create the fork->upstream PR (dry-run by default) and the CLA comment.
   local candidate = core.parse_entity_ref(entity)
   local upstream = core.contrib_target()

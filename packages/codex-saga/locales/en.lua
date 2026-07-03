@@ -79,6 +79,7 @@ return {
   ["codex-saga.progress.tracked"] = "Tracked: the attempt outcome was recorded for the learning loop.",
   ["codex-saga.progress.merged"] = "Merged upstream.",
   ["codex-saga.progress.closed"] = "Closed upstream.",
+  ["codex-saga.progress.needs_invite"] = "Needs invite: upstream engagement did not receive a maintainer invitation within the bounded wait.",
 
   -- Gate refusal reasons (the WHY carried by the terminal drop, spec §10).
   ["codex-saga.gate.refuse_security"] = "Security or safety issue: routed privately to security@openai.com and never posted publicly.",
