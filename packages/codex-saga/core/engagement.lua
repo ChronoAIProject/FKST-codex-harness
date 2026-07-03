@@ -113,6 +113,80 @@ function S.install(M)
     return rules
   end
 
+  -- ---- re-ranked exemplar bank (#17) ------------------------------------------
+  -- relearn (codex-learn) writes a numbered "## Exemplar bank (re-ranked)" section into
+  -- the induced styleguide: its credit-weighted re-ranking of successful exemplars.
+  -- parse_styleguide_rules only reads BULLET lines, so this bank was previously ignored
+  -- and engage re-derived its own TF-IDF order. Parse the numbered section into an
+  -- ORDERED list of refs so engage can PREFER the learned order.
+  function M.parse_styleguide_exemplar_bank(text)
+    local refs = {}
+    local in_bank = false
+    for line in tostring(text or ""):gmatch("[^\n]+") do
+      if line:match("^%s*##%s+[Ee]xemplar bank") ~= nil then
+        in_bank = true
+      elseif line:match("^%s*#") ~= nil then
+        -- any other markdown heading ends the bank section.
+        in_bank = false
+      elseif in_bank then
+        local ref = line:match("^%s*%d+%.%s+(.+)$")
+        if ref ~= nil then
+          ref = M.trim(ref)
+          if M.is_nonempty_string(ref) then
+            table.insert(refs, ref)
+          end
+        end
+      end
+    end
+    return refs
+  end
+
+  function M.read_engagement_exemplar_bank(opts)
+    opts = opts or {}
+    local text = opts.text
+    if text == nil then
+      local path = opts.path or M.engagement_styleguide_path()
+      if file.exists(path) then
+        local ok, contents = pcall(file.read, path)
+        if ok then
+          text = contents
+        end
+      end
+    end
+    return M.parse_styleguide_exemplar_bank(text)
+  end
+
+  -- Reorder exemplar refs to PREFER the re-ranked bank: refs present in the bank come
+  -- first (in bank order), the rest keep their original relative order. Retrieval stays
+  -- candidate-conditioned (bank refs NOT retrieved are not injected); the bank only
+  -- re-orders what retrieval surfaced. Empty bank -> refs unchanged (fail-soft when
+  -- relearn has not produced a styleguide yet).
+  function M.rerank_refs_by_bank(refs, bank)
+    refs = refs or {}
+    if bank == nil or #bank == 0 then
+      return refs
+    end
+    local present = {}
+    for _, r in ipairs(refs) do
+      present[r] = true
+    end
+    local seen = {}
+    local out = {}
+    for _, r in ipairs(bank) do
+      if present[r] and not seen[r] then
+        table.insert(out, r)
+        seen[r] = true
+      end
+    end
+    for _, r in ipairs(refs) do
+      if not seen[r] then
+        table.insert(out, r)
+        seen[r] = true
+      end
+    end
+    return out
+  end
+
   -- True when any induced rule mentions `keyword` (case-insensitive substring). The
   -- composer uses this so the comment's section set is driven by the induced rules.
   function M.styleguide_has(rules, keyword)

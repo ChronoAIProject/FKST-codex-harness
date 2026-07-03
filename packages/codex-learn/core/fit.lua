@@ -26,6 +26,9 @@ function S.install(M)
   -- Reconstruct an issue from a corpus_selection record so the SAME rubric scorer
   -- code path derives the feature components. anatomy_flags are rendered into a body
   -- the rubric's anatomy parser recognizes verbatim (version/repro/code/os/error).
+  -- SAFE FALLBACK (#14): anatomy_flags and reactions are OPTIONAL - a record without them
+  -- (e.g. a folded outcome before the saga populates them) trains anatomy/demand as 0; once
+  -- relearn.fold_outcomes carries them through from the §5 outcome record they train for real.
   function M.synthesize_issue(record)
     local flags = (type(record) == "table" and record.anatomy_flags) or {}
     local parts = {}

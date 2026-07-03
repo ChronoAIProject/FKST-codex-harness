@@ -27,6 +27,19 @@ local function act(event)
   local dedup_key = payload.dedup_key
   local fork_path = core.fork_local_path()
 
+  -- Explicit operator no-op switch (the gate that implement's write-mode has but
+  -- diagnose lacked; see core.diagnose_live). Spec §5 makes the read-only local
+  -- reproduction legitimate, so this DEFAULTS to live. A host without codex or a fork
+  -- checkout sets FKST_DIAGNOSE_SIMULATE=1 to SKIP diagnosis entirely: no claim, no
+  -- codex spawn, and crucially NO fabricated needs_info/not_reproduced drop (that state
+  -- must only ever come from a real, program-observed reproduction attempt, spec §6).
+  -- The candidate is left unclaimed for a capable substrate to pick up.
+  if not core.diagnose_live() then
+    log.info("codex-saga/diagnose simulate: FKST_DIAGNOSE_SIMULATE=1 - skipping diagnosis for "
+      .. tostring(dedup_key) .. " (no claim, no codex spawn, no drop)")
+    return nil
+  end
+
   -- CLAIM the candidate on the tracker (unconditional, dry-run-safe): the control issue
   -- is the CROSS-SUBSTRATE claim ledger - other substrates' triage reads the open control
   -- issues to know which candidates are taken, so the claim must exist BEFORE the
@@ -86,6 +99,17 @@ local function act(event)
     score = payload.score,
     labels = payload.labels,
     root_cause = result.root_cause,
+    -- Honesty flags threaded to the outward comment + track (Agent B carries them from
+    -- here via LEARNING_KEYS). Small control scalars, no bodies/diffs (payload discipline).
+    -- root_cause_verified: true only when core.run_diagnosis confirmed the parsed
+    -- file:line names a git-TRACKED file within the fork checkout with the line in range;
+    -- when false the downstream comment must say "Suspected root cause" not assert it.
+    root_cause_verified = result.root_cause_verified == true,
+    -- reproduced: honest, VERIFIED reproduction state - NOT the codex self-report that
+    -- gated the advance above. The harness performs no automated reproduction, so this
+    -- is false (downstream must NOT claim verified reproduction). Flip it to a real
+    -- verification signal in core.run_diagnosis when automated reproduction is built.
+    reproduced = false,
   })
 end
 

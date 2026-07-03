@@ -7,6 +7,19 @@
 -- Strictness is modeled as a picked_score threshold; we VERIFY a tighter threshold
 -- flips the wrongly-passed picks to "refuted" through advocate.gate's own combine().
 -- PURE: no os/io/network, no globals. Invoked by relearn (one calibration per tick).
+--
+-- ASYMMETRY (#15, honest by construction): calibration only scores the advocate against
+-- picks that have a REAL disposition to score against, i.e. RESOLVED outcomes
+-- (merged|closed|ignored). A pick the advocate REFUSED never reaches engage, so it is
+-- recorded (deliberation.lua) with a refused_* disposition OUTSIDE the resolved set and is
+-- SKIPPED here - a refused pick has no observed outcome, and we deliberately do NOT
+-- fabricate a counterfactual "would have merged" proxy for it. Because only CLEARED picks
+-- are proposed/tracked, resolved outcomes carry advocate_verdict="pass", so in the current
+-- gate topology `false_strict` is ~0 and calibration is effectively TIGHTEN-ONLY. The
+-- loosen branch is retained but NOT dead-in-principle: it fires only on genuine ground
+-- truth - a pick the advocate refuted that was nonetheless engaged and reached a GOOD
+-- disposition (an operator/consensus OVERRIDE), an honest false-strict signal. Until the
+-- saga surfaces such override outcomes it stays dormant; it is never fed synthetic refusals.
 local S = {}
 
 local advocate = require("advocate.gate")
@@ -114,6 +127,10 @@ function S.install(M)
       end
       new_strictness = math.max(prior, math.min(target, cap))
     elseif false_strict > false_lenient and #fs_scores > 0 then
+      -- LOOSEN (honest ground truth only): fs_scores collects picks the advocate REFUTED
+      -- that still reached a GOOD disposition (engaged despite refusal via override, then
+      -- merged/positive). No refusal proxy is synthesized here (see the header ASYMMETRY
+      -- note), so in the current tighten-only topology this branch is dormant by design.
       local target = math.huge
       for _, s in ipairs(fs_scores) do
         target = math.min(target, s)

@@ -23,13 +23,25 @@ local function act(event)
   local dedup_key = payload.dedup_key
 
   -- HARD precondition (the LAST safety boundary): open_pr NEVER opens an uninvited
-  -- PR, UNCONDITIONALLY. The invite is re-derived fresh from the control issue (not
-  -- trusted from the payload); no env flag can relax this boundary. The upstream
-  -- gate may relax FKST_PROPOSE_REQUIRE_INVITE, but open_pr does not consult it -
-  -- an uninvited PR is a ban risk (playbook DON'T #1).
-  local invited = core.recorded_invite(dedup_key, payload.control_issue)
+  -- PR, UNCONDITIONALLY. The invite is re-derived fresh from the UPSTREAM candidate
+  -- thread (source_ref on FKST_CONTRIB_TARGET) - where maintainers actually reply - not
+  -- trusted from the payload; no env flag can relax this boundary. The upstream gate may
+  -- relax FKST_PROPOSE_REQUIRE_INVITE, but open_pr does not consult it - an uninvited PR
+  -- is a ban risk (playbook DON'T #1).
+  local invited = core.recorded_invite(dedup_key, entity)
   if not invited then
     log.warn("codex-saga/open_pr refuse: no recorded maintainer invitation; not opening an uninvited PR")
+    return nil
+  end
+
+  -- Integrity preflight (#5), FAIL-CLOSED: never open a PR unless the root cause was
+  -- VERIFIED against the fork worktree (Agent A's root_cause_verified == true). Blocking
+  -- on nil too (not only an explicit false) closes the recovered-invite bypass: the cron
+  -- reconcile path rebuilds codex_invited from markers and cannot carry the diagnose-time
+  -- flag, so a nil MUST read as unverified here (the field is threaded on the direct path
+  -- via LEARNING_KEYS). This never relaxes the hard invite gate above.
+  if payload.root_cause_verified ~= true then
+    log.warn("codex-saga/open_pr refuse: root_cause not verified; not opening a PR on an unverified diagnosis")
     return nil
   end
 

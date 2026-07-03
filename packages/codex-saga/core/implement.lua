@@ -50,10 +50,17 @@ function S.install(M)
     if text == nil then
       local path = opts.path or M.pr_style_corpus_path()
       if not file.exists(path) then
+        -- Fail-soft but LOUD: an absent corpus means the fix prompt carries NO
+        -- merged-PR exemplars (outward behavior change), so warn rather than degrade
+        -- silently.
+        log.warn("codex-saga/implement: PR-style corpus not found at " .. tostring(path)
+          .. "; proceeding WITHOUT merged-PR exemplars (exemplar-free fix prompt)")
         return {}
       end
       local ok, contents = pcall(file.read, path)
       if not ok then
+        log.warn("codex-saga/implement: PR-style corpus at " .. tostring(path)
+          .. " is unreadable (" .. tostring(contents) .. "); proceeding WITHOUT merged-PR exemplars")
         return {}
       end
       text = contents
@@ -128,10 +135,17 @@ function S.install(M)
     if text == nil then
       local path = opts.path or M.repo_structure_path()
       if not file.exists(path) then
+        -- Fail-soft but LOUD: an absent area->crate map means the fix is UNROUTED
+        -- (no target crate), an outward behavior change; warn rather than silently
+        -- returning an empty map.
+        log.warn("codex-saga/implement: repo-structure map not found at " .. tostring(path)
+          .. "; the fix will be UNROUTED (no target crate)")
         return {}
       end
       local ok, contents = pcall(file.read, path)
       if not ok then
+        log.warn("codex-saga/implement: repo-structure map at " .. tostring(path)
+          .. " is unreadable (" .. tostring(contents) .. "); the fix will be UNROUTED (no target crate)")
         return {}
       end
       text = contents
@@ -148,9 +162,13 @@ function S.install(M)
   end
 
   -- ---- retrieval: nearest merged-PR exemplars (precedent.tfidf) ----------------
-  -- A PR-style record carries no title/body; synthesize a precedent-friendly doc
-  -- from its touched_paths so the TF-IDF cosine reflects path/crate overlap with the
-  -- target. Only the small {ref, source_ref} is ever carried forward.
+  -- Build a precedent-friendly doc for a PR-style record. When the record carries a
+  -- human PR title / summary / approach, USE it (weighted x3 in the doc title, so the
+  -- TF-IDF cosine reflects real semantic overlap, not just shared path tokens); the
+  -- touched_paths still feed the body for crate/path overlap. When those fields are
+  -- ABSENT (the shipped corpus_pr_style records carry only paths — see the data-gap
+  -- PM-NEEDS), fall back to touched_paths for both title and body, preserving the
+  -- original path-overlap behavior. Only the small {ref, source_ref} is carried forward.
   function M.pr_exemplar_doc(record)
     local ref = nil
     if type(record.source_ref) == "table" then
@@ -161,11 +179,28 @@ function S.install(M)
       table.insert(paths, tostring(path))
     end
     local joined = table.concat(paths, " ")
+    -- Collect any human PR-shape fields present on the record (title/summary/approach).
+    local human = {}
+    for _, field in ipairs({ record.title, record.summary, record.approach }) do
+      if M.is_nonempty_string(field) then
+        table.insert(human, tostring(field))
+      end
+    end
+    local title, body
+    if #human > 0 then
+      local human_text = table.concat(human, " ")
+      title = M.is_nonempty_string(record.title) and tostring(record.title) or human_text
+      -- Body carries the human text AND the paths, so both semantic + path overlap count.
+      body = joined ~= "" and (human_text .. " " .. joined) or human_text
+    else
+      title = joined
+      body = joined
+    end
     return {
       ref = ref,
       source_ref = record.source_ref,
-      title = joined,
-      body = joined,
+      title = title,
+      body = body,
       touched_paths = record.touched_paths,
       merged = record.merged,
     }
@@ -247,10 +282,13 @@ function S.install(M)
       table.insert(lines, "  - " .. tostring(exemplar.ref or "(ref)"))
     end
     table.insert(lines, "Keep the change small (<=3 files / <=200 LOC), add a fail-before/pass-after test, and follow repo conventions.")
-    table.insert(lines, "Respond with exactly three lines:")
+    table.insert(lines, "After writing the fix, RUN the affected package's test target and observe the result.")
+    table.insert(lines, "Respond with exactly these lines:")
     table.insert(lines, "FIX_WRITTEN: yes   (or)   FIX_WRITTEN: no")
     table.insert(lines, "FILES: <comma-separated changed paths>   (omit if no fix)")
     table.insert(lines, "APPROACH: <1-2 sentences on one line: what the fix changes and how the added test proves it>")
+    table.insert(lines, "TEST_COMMAND: <the exact test command you ran on one line>   (omit if you ran none)")
+    table.insert(lines, "TEST_RESULT: pass   (or)   TEST_RESULT: fail — <short note on one line>")
     return table.concat(lines, "\n")
   end
 
@@ -292,11 +330,44 @@ function S.install(M)
     return parse_marker_line(stdout, "APPROACH")
   end
 
+  -- The REAL test command codex reports having run (bounded, sanitized scalar), and its
+  -- pass/fail result note. Threaded onto codex_implemented as `test_command`/`validation`
+  -- so the dossier "Validation plan" line reflects what was ACTUALLY validated, not a
+  -- hardcoded default (learning-model §4; carried as small scalars, never test output).
+  function M.parse_test_command(stdout)
+    return parse_marker_line(stdout, "TEST_COMMAND")
+  end
+
+  function M.parse_test_result(stdout)
+    return parse_marker_line(stdout, "TEST_RESULT")
+  end
+
+  -- Compose the honest human `validation` summary from the parsed real test facts. When
+  -- codex reported a command + result, say what ran and how it went; when only a result,
+  -- carry that; when nothing was reported in a real write, say so plainly (never invent a
+  -- pass). Returns a bounded scalar (parse helpers already bound their inputs).
+  function M.build_validation_summary(test_command, test_result)
+    local has_cmd = M.is_nonempty_string(test_command)
+    local has_result = M.is_nonempty_string(test_result)
+    if has_cmd and has_result then
+      return "ran `" .. test_command .. "` → " .. test_result
+    end
+    if has_cmd then
+      return "ran `" .. test_command .. "` (result not reported)"
+    end
+    if has_result then
+      return test_result
+    end
+    return "no test command reported by codex"
+  end
+
   -- ---- the write-class fix effect (dry-run by default) -------------------------
-  -- DRY-RUN: log the intent and return { ok=true, mode="dry-run" } with NO commands,
-  -- so the saga proceeds in demo mode referencing the intended fix branch. REAL
-  -- (FKST_GITHUB_WRITE=1): gate the genuinely-once write on once()/the fork branch.
-  -- req = { dedup_key, fork_path, branch, prompt, crate, exec?, codex? }.
+  -- DRY-RUN: log the intent and return { ok=true, mode="dry-run", simulated=true } with
+  -- NO commands, so the saga proceeds in demo mode. NOTHING is created or pushed, so the
+  -- return is marked `simulated=true` (the branch was NEVER written) and validation is set
+  -- HONESTLY to "not run (simulated)"; downstream must NOT assert a real branch/test from
+  -- a simulated result. REAL (FKST_GITHUB_WRITE=1): gate the genuinely-once write on
+  -- once()/the fork branch. req = { dedup_key, fork_path, branch, prompt, crate, exec?, codex? }.
   function M.implement_write(req)
     local mode = M.write_mode()
     local crate_path = (type(req.crate) == "table" and req.crate.crate) or "(unresolved)"
@@ -306,19 +377,29 @@ function S.install(M)
     if mode ~= "real" then
       log.info("codex-saga dry-run: would run codex to write the fix on "
         .. tostring(req.branch) .. " and push to the fork (no real commands)")
-      return { ok = true, mode = "dry-run", branch = req.branch, crate = crate_path }
+      -- HONEST: no branch was created/pushed and no test ran. `simulated=true` +
+      -- validation="not run (simulated)"; `test_command` deliberately unset.
+      return {
+        ok = true,
+        mode = "dry-run",
+        simulated = true,
+        branch = req.branch,
+        crate = crate_path,
+        validation = "not run (simulated)",
+      }
     end
 
     if not M.is_nonempty_string(req.fork_path) then
       error("codex-saga: implement requires FKST_FORK_LOCAL_PATH for a real write")
     end
-    local result = { ok = false, mode = "real", branch = req.branch, crate = crate_path }
+    local result = { ok = false, mode = "real", simulated = false, branch = req.branch, crate = crate_path }
     local ran = once(M.step_key("implement", req.dedup_key), function()
       result = M.run_implementation(req)
     end)
     if not ran then
       -- marker present: the fix was already written this runtime; proceed idempotently.
-      result = { ok = true, mode = "real", branch = req.branch, crate = crate_path, skipped = true }
+      result = { ok = true, mode = "real", simulated = false, branch = req.branch,
+        crate = crate_path, skipped = true, validation = "already implemented (idempotent skip)" }
     end
     return result
   end
@@ -346,8 +427,15 @@ function S.install(M)
     local out = codex({ prompt = req.prompt, worktree = worktree, timeout = 1800 })
     local stdout = (type(out) == "table" and out.stdout) or ""
     local written = M.parse_fix_written(stdout)
-    local result = { ok = written, mode = "real", branch = req.branch, crate = crate_path,
-      files = M.parse_files(stdout), approach = M.parse_approach(stdout) }
+    -- Capture the REAL test command codex ran + its pass/fail, and thread the honest
+    -- validation summary (#7) onto the result so implement raises test_command +
+    -- validation (never the hardcoded default). A REAL write is not simulated.
+    local test_command = M.parse_test_command(stdout)
+    local test_result = M.parse_test_result(stdout)
+    local result = { ok = written, mode = "real", simulated = false, branch = req.branch, crate = crate_path,
+      files = M.parse_files(stdout), approach = M.parse_approach(stdout),
+      test_command = test_command,
+      validation = M.build_validation_summary(test_command, test_result) }
 
     if written then
       M.run_argv({ argv = { "git", "-C", worktree, "checkout", "-B", tostring(req.branch) }, timeout = 30 }, exec)

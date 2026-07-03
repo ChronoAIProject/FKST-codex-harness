@@ -23,12 +23,17 @@ packages/
                   raisers/issues.lua (cron tick) -> departments/score_dedup -> raise codex_candidate
   codex-saga/     composed, kind="package.composed", persistence_class="saga"
                   [event_deps] codex-triage; [conformance] function="core.saga_conformance_errors"
-                  departments/{diagnose,dossier,gate,engage,open_pr,invite_watch} (conformant STUBS, TODO Task E)
-                  saga chain: diagnose->dossier->gate->engage->open_pr; invite_watch gates open_pr
+                  departments/{diagnose,implement,dossier,gate,engage,invite_watch,open_pr,track,outcome_watch} (IMPLEMENTED, real logic)
+                  saga chain: diagnose->implement->dossier->gate->engage->invite_watch->open_pr->track->outcome_watch
+                  (open_pr hard-gated on a maintainer invite detected on the UPSTREAM openai/codex thread)
+  codex-learn/    flat, kind="package" — relearn: fold §5 outcome records -> refit rubric tier
+                  weights + advocate calibration, published into data/area_rubric.json and
+                  consumed at scoring time by codex-triage via dependency injection
 libraries/workflow/   VENDORED workflow.saga library (saga.lua + manifest). See
                       docs/dependency-strategy.md + libraries/workflow/VENDORED.pin.
 data/                 seed corpus (read via source_ref, NOT inlined into payloads):
-                      area_rubric.json, open_issue_clusters.json, worked_on_full.jsonl
+                      area_rubric.json (tiers/weights loaded into the scorer via DI + re-fit
+                      by codex-learn), open_issue_clusters.json, worked_on_full.jsonl
 scripts/run.sh        multi-package runner (R1 EXCEPTION to spec §2 — see its header)
 scripts/check_repo.py .github/workflows/ci.yml env.example .fkst-substrate-ref .gitignore README.md
                       = as emitted by `fkst-framework init-package-repo` (do NOT hand-edit)
@@ -40,8 +45,10 @@ docs/                 spec + methodology + pilot + playbook + runbooks
 Both packages follow the package-repo contract: `core.lua` (pure shared logic),
 `departments/<d>/main.lua` returning `M.spec` + a `workflow.saga.department` pipeline,
 `raisers/<r>.lua` returning a static cron/file_watch source, `locales/en.lua`,
-`tests/*_test.lua`. The current departments are **conformant STUBS** marked
-`TODO(Task D/E)` — D/E flesh in the real diagnose→dossier→gate→engage→open_pr logic.
+`tests/*_test.lua`. The saga departments are **fully implemented** (diagnose→implement→
+dossier→gate→engage→invite_watch→open_pr→track→outcome_watch); the earlier "conformant
+STUBS / Task D/E" note is historical — that logic has landed, plus the P0–P3 integrity,
+invite-detection, and learning-loop fixes.
 
 ## Build / test / supervise
 

@@ -135,6 +135,13 @@ function S.install(M)
           label = disposition_label(oc),
           area_labels = area_labels_with_type(oc.area_labels, oc.type),
           type = oc.type,
+          -- Carry the real anatomy/demand features (#14) so the re-fit trains on them,
+          -- not on a zero vector. These are OPTIONAL on the source §5 record: when the
+          -- saga's outcome.lua supplies anatomy_flags (from triage anatomy) + reactions
+          -- (re-fetched via source_ref) they flow into fit.synthesize_issue; when absent
+          -- fit falls back to 0 (works today, improves the day they are populated).
+          anatomy_flags = oc.anatomy_flags,
+          reactions = oc.reactions,
           win_quality = "our_outcome",
         }
         counts.selection = counts.selection + 1

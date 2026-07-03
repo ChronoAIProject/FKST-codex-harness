@@ -9,19 +9,29 @@ return {
   ["codex-saga.engage.disclose_ai"] = "This analysis was prepared with AI assistance.",
 
   -- Outward issue/comment dossier (the §3 winning template: repro + root cause +
-  -- impact + approach as options + defer + disclosure).
-  ["codex-saga.engage.heading"] = "Reproduction notes and proposed fix path",
+  -- impact + approach as options + defer + disclosure). Section headers are real
+  -- markdown (H2 title + bold sub-headers) so the rendered comment is structured.
+  ["codex-saga.engage.heading"] = "## Reproduction notes and proposed fix path",
   ["codex-saga.engage.intro"] = "I took a pass at reducing this to an actionable code path before suggesting a fix.",
-  ["codex-saga.engage.breakdown_heading"] = "Breakdown:",
-  ["codex-saga.engage.repro_line"] = "I treated the report as reproducible enough to trace against the current code instead of asking for more information.",
+  ["codex-saga.engage.breakdown_heading"] = "**Breakdown:**",
+  -- Asserted reproduction claim: emitted ONLY when the diagnose payload's `reproduced`
+  -- flag is truly verified (integrity gate #2). Never rendered on styleguide text alone.
+  ["codex-saga.engage.repro_line"] = "I reproduced the report against the current code before tracing the root cause, rather than asking for more information.",
   ["codex-saga.engage.root_cause_label"] = "Root cause",
+  -- Hedged label used when the root cause is NOT verified (integrity gate #2): never
+  -- assert an unverified root cause.
+  ["codex-saga.engage.root_cause_label_suspected"] = "Suspected root cause",
   ["codex-saga.engage.impact_label"] = "Impact",
-  ["codex-saga.engage.approach_heading"] = "Proposed approach:",
+  ["codex-saga.engage.approach_heading"] = "**Proposed approach:**",
   ["codex-saga.engage.fix_scope_with_root"] = "Keep the patch scoped to the code path around {root_cause}, so the behavior changes where the regression is introduced rather than broadening the surface area.",
   ["codex-saga.engage.fix_scope_default"] = "Keep the patch scoped to the reproduced failing path instead of broadening adjacent behavior.",
   ["codex-saga.engage.validation_label"] = "Validation plan",
   ["codex-saga.engage.validation_default"] = "add or update focused regression coverage and run the affected package test target before proposing the branch",
   ["codex-saga.engage.branch_label"] = "Prepared fork branch",
+  -- Honest branch note when the fork branch was NOT actually pushed (dry-run or E's
+  -- `simulated` marker): render the bare name, never a live tree/compare link (#8).
+  ["codex-saga.engage.branch_simulated_note"] = "(prepared locally — not pushed)",
+  ["codex-saga.engage.branch_compare"] = "compare vs upstream",
   ["codex-saga.engage.invite_policy"] = "I will not open an unsolicited PR; if this direction matches maintainer expectations, I can open the prepared branch for review.",
   ["codex-saga.engage.precedent_label"] = "Precedent",
   ["codex-saga.engage.precedent_none"] = "no closely analogous merged fix found in the worked-on corpus",
@@ -79,9 +89,20 @@ return {
   ["codex-saga.progress.tracked"] = "Tracked: the attempt outcome was recorded for the learning loop.",
   ["codex-saga.progress.merged"] = "Merged upstream.",
   ["codex-saga.progress.closed"] = "Closed upstream.",
+  -- Terminal states that also render on the board (saga_table timeout/gate drops). These
+  -- must exist or progress_body's t("codex-saga.progress."..state) fails when a terminal
+  -- is recorded (e.g. invite_watch expiry -> needs_invite, gate security/blocked drops).
+  ["codex-saga.progress.needs_invite"] = "Needs invite: no maintainer invitation arrived within the window; closing out without opening a PR.",
+  ["codex-saga.progress.blocked"] = "Blocked: the attempt was halted before engagement (see reason).",
+  ["codex-saga.progress.security_routed"] = "Security-sensitive: withheld from public posting. No automated private-disclosure path exists; a maintainer should raise it through the project's security process.",
+
+  -- Engage refuse-to-post reasons (integrity gates; the dossier is REFUSED, no boilerplate
+  -- is emitted, spec §10 output contract). Logged as the egress refusal reason.
+  ["codex-saga.engage.refuse_unverified"] = "Key artifacts are unverified (reproduction, root cause at file:line, validation, or a pushed fork branch); refusing to post an unsubstantiated dossier.",
+  ["codex-saga.engage.refuse_duplicate"] = "This dossier is near-identical boilerplate versus a recently-posted harness comment; refusing to post to avoid low-signal duplication.",
 
   -- Gate refusal reasons (the WHY carried by the terminal drop, spec §10).
-  ["codex-saga.gate.refuse_security"] = "Security or safety issue: routed privately to security@openai.com and never posted publicly.",
+  ["codex-saga.gate.refuse_security"] = "Security or safety issue: withheld from public posting. There is no automated private-disclosure path; this candidate is dropped and a maintainer should report it directly via the project's security process.",
   ["codex-saga.gate.refuse_consensus"] = "Multi-angle consensus did not approve this engagement.",
   ["codex-saga.gate.refuse_volume_cap"] = "Daily public engagement cap reached; deferring this engagement.",
   ["codex-saga.gate.refuse_disclosure"] = "AI-disclosure is disabled; refusing to post without disclosing AI assistance.",

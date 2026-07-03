@@ -66,7 +66,7 @@ Departments (the wired chain):
 
 | Department | Does | Plane |
 |---|---|---|
-| `diagnose` | reproduce + `git bisect` + root-cause on a fork worktree | local (fork) |
+| `diagnose` | codex read-only worktree run + root-cause (file:line, verified against the worktree) on a fork worktree | local (fork) |
 | `implement` | retrieve nearest merged-PR exemplars (`precedent`+`repo_map`) → write the fix on the fork worktree | local (fork), dry-run |
 | `dossier` | precedent story + demo branch; retrieves engagement exemplars + styleguide | local |
 | `gate` | gate0 security route-out · invite precondition · volume cap · AI-disclosure · advocate/consensus | gate |

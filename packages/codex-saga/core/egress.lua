@@ -167,6 +167,147 @@ function S.install(M)
     return intent
   end
 
+  -- ---- comment-diversity gate (#3) --------------------------------------------
+  -- The only pre-existing idempotency is a per-dedup_key marker on the SAME issue.
+  -- Nothing stopped the harness posting the SAME boilerplate across MANY different
+  -- issues (the "6 near-identical comments" look). These pure helpers compare a
+  -- rendered body against recently-posted harness comment bodies and REFUSE a
+  -- near-identical post. Bodies are compared as token SETS (marker/HTML noise is
+  -- naturally excluded by the tokenizer), so the gate is robust to trivial edits.
+
+  -- Normalized token SET of a rendered body (lowercased word-ish runs). Also accepts a
+  -- single-line fingerprint (see M.body_fingerprint), which re-tokenizes to itself.
+  function M.body_tokens(body)
+    local set = {}
+    for tok in tostring(body or ""):lower():gmatch("[%w][%w_/%.#%-]*") do
+      if #tok >= 2 then
+        set[tok] = true
+      end
+    end
+    return set
+  end
+
+  -- A single-line, marker-safe fingerprint of a body: its unique tokens, sorted and
+  -- space-joined. Stored one-per-line in the recent-body ring so multi-line bodies need
+  -- no record separator, and re-tokenizes to the same set for similarity.
+  function M.body_fingerprint(body)
+    local set = M.body_tokens(body)
+    local toks = {}
+    for tok in pairs(set) do
+      toks[#toks + 1] = tok
+    end
+    table.sort(toks)
+    return table.concat(toks, " ")
+  end
+
+  -- Jaccard similarity over two token SETS: |A∩B| / |A∪B| in [0,1]. Two empty sets
+  -- are treated as dissimilar (0), so an empty body never trips the duplicate gate.
+  function M.token_jaccard(a, b)
+    local inter, union = 0, 0
+    for tok in pairs(a or {}) do
+      union = union + 1
+      if (b or {})[tok] then
+        inter = inter + 1
+      end
+    end
+    for tok in pairs(b or {}) do
+      if (a or {})[tok] == nil then
+        union = union + 1
+      end
+    end
+    if union == 0 then
+      return 0
+    end
+    return inter / union
+  end
+
+  function M.body_similarity(a, b)
+    return M.token_jaccard(M.body_tokens(a), M.body_tokens(b))
+  end
+
+  -- Similarity at/above which two harness comments are "near-identical boilerplate".
+  -- Conservative default (0.9); host-overridable via FKST_ENGAGE_DIVERSITY_THRESHOLD.
+  function M.diversity_threshold()
+    local v = tonumber(M.read_env("FKST_ENGAGE_DIVERSITY_THRESHOLD"))
+    if v ~= nil and v > 0 and v <= 1 then
+      return v
+    end
+    return 0.9
+  end
+
+  -- True when `body` is near-identical to ANY recently-posted harness comment body (or
+  -- fingerprint). Empty recents -> never a duplicate (fail-open only on genuine absence).
+  function M.is_boilerplate_duplicate(body, recent_bodies, threshold)
+    threshold = threshold or M.diversity_threshold()
+    local tokens = M.body_tokens(body)
+    for _, recent in ipairs(recent_bodies or {}) do
+      if M.token_jaccard(tokens, M.body_tokens(recent)) >= threshold then
+        return true
+      end
+    end
+    return false
+  end
+
+  -- Diversity precondition: (ok, reason). Refuses when the rendered body duplicates a
+  -- recently-posted harness comment. `recent_bodies` is supplied by the caller (nil/{}
+  -- in dry-run, where nothing was posted -> never refuses).
+  function M.diversity_ok(body, recent_bodies)
+    if M.is_boilerplate_duplicate(body, recent_bodies) then
+      return false, t("codex-saga.engage.refuse_duplicate")
+    end
+    return true
+  end
+
+  -- ---- recent-body ring seam (internal; see PM-NEEDS for the durable cross-issue store)
+  -- A small per-device ring of the fingerprints of recently-posted engagement bodies,
+  -- so the diversity gate has something to compare against WITHOUT a cross-issue GitHub
+  -- enumeration. Under the runtime root by default (clearable scratch); host-overridable.
+  function M.engage_body_ring_path()
+    local override = M.read_env("FKST_ENGAGE_BODY_RING")
+    if M.is_nonempty_string(override) then
+      return override
+    end
+    return M.env_or("FKST_RUNTIME_ROOT", ".") .. "/codex-saga-engage-bodies.ring"
+  end
+
+  local RING_LIMIT = 50
+
+  function M.recent_engage_bodies(path)
+    path = path or M.engage_body_ring_path()
+    if not file.exists(path) then
+      return {}
+    end
+    local ok, text = pcall(file.read, path)
+    if not ok then
+      return {}
+    end
+    local out = {}
+    for line in tostring(text or ""):gmatch("[^\n]+") do
+      local fp = M.trim(line)
+      if M.is_nonempty_string(fp) then
+        out[#out + 1] = fp
+      end
+    end
+    return out
+  end
+
+  -- Append a posted body's fingerprint to the ring (called after a REAL post only).
+  -- Keeps only the last RING_LIMIT lines so the file stays bounded.
+  function M.record_engage_body(body, path)
+    path = path or M.engage_body_ring_path()
+    local existing = M.recent_engage_bodies(path)
+    existing[#existing + 1] = M.body_fingerprint(body)
+    local start = 1
+    if #existing > RING_LIMIT then
+      start = #existing - RING_LIMIT + 1
+    end
+    local kept = {}
+    for i = start, #existing do
+      kept[#kept + 1] = existing[i]
+    end
+    pcall(file.write, path, table.concat(kept, "\n") .. "\n")
+  end
+
   -- Generic write-class egress. In dry-run it logs and RETURNS a recorded intent
   -- with NO external mutation (the default). In real mode it takes a process lock,
   -- re-derives the bot-authored marker (skips when already present), writes the
@@ -174,7 +315,9 @@ function S.install(M)
   -- leaves a within-runtime cache backstop.
   --
   -- req = {op, repo, dedup_key, body, marker, title?, labels?, argv_builder, exec?,
-  --        marker_present?}  where marker_present() re-reads GitHub for the marker.
+  --        marker_present?, precondition?}  where marker_present() re-reads GitHub for
+  --        the marker and precondition() -> (ok, reason) is a REFUSE-TO-POST integrity
+  --        gate (unverified artifacts / boilerplate duplicate) honored in BOTH modes.
   function M.egress_write(req)
     local mode = M.write_mode()
     log.info(string.format("OUTBOUND mode=%s op=%s repo=%s dedup_key=%s",
@@ -190,6 +333,20 @@ function S.install(M)
       body = req.body,
       marker = req.marker,
     }
+
+    -- Refuse-to-post integrity gate (#2/#3/#22): a failing precondition REFUSES the
+    -- write in ANY mode (no boilerplate, no unsubstantiated dossier), before we would
+    -- log a "would post" intent. The refusal + reason land on the intent for the board.
+    if type(req.precondition) == "function" then
+      local ok, reason = req.precondition()
+      if not ok then
+        log.info(string.format("codex-saga: REFUSING %s on %s (refuse-to-post): %s",
+          tostring(req.op), tostring(req.repo), tostring(reason)))
+        intent.refused = true
+        intent.refusal_reason = reason
+        return intent
+      end
+    end
 
     if mode ~= "real" then
       log.info(string.format("codex-saga dry-run: would %s on %s (no external write)",

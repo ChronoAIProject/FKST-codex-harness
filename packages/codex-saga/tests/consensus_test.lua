@@ -4,6 +4,7 @@
 -- RECORDED; short of a majority refuses (no_convergence); rationales parse + are
 -- marker-sanitized; and the transcript renders every round for the board audit log.
 local core = require("core")
+local advocate = require("advocate.gate")
 local tk = fkst.test
 
 -- A scripted runner: answers per (call order) from `script`, cycling angle order
@@ -128,5 +129,76 @@ return {
     tk.is_true(text:find("Round 1:", 1, true) ~= nil)
     tk.is_true(text:find("Round 3:", 1, true) ~= nil)
     tk.is_true(text:find("- approach: reject - too risky.", 1, true) ~= nil)
+  end,
+
+  -- #10: the gate consumes the CALIBRATED advocate strictness off the PUBLISHED rubric
+  -- (codex-learn writes advocate_calibration.strictness). FAIL-SAFE: an absent file or
+  -- an absent calibration falls back to the seed default; a written value is read back.
+  test_advocate_strictness_reads_rubric_or_defaults = function()
+    tk.eq(core.advocate_strictness({ path = "/nonexistent/no-rubric.json" }),
+      core.DEFAULT_ADVOCATE_STRICTNESS)
+    local root = os.getenv("FKST_RUNTIME_ROOT") or "."
+    local no_cal = root .. "/consensus-rubric-no-cal.json"
+    file.write(no_cal, '{"areas":[]}')
+    tk.eq(core.advocate_strictness({ path = no_cal }), core.DEFAULT_ADVOCATE_STRICTNESS)
+    local with_cal = root .. "/consensus-rubric-cal.json"
+    file.write(with_cal, '{"advocate_calibration":{"strictness":72}}')
+    tk.eq(core.advocate_strictness({ path = with_cal }), 72)
+  end,
+
+  -- #11: the gate's devil's-advocate dissent is BLOCKING for a low-confidence pick
+  -- (picked_score below the calibrated strictness) and non-blocking otherwise / when
+  -- the score is absent - the exact rule codex-learn's offline calibrator models.
+  test_gate_dissent_blocks_below_strictness = function()
+    local low = core.gate_dissent({ title = "x" }, 40, 45)
+    tk.eq(low.blocking, true)
+    tk.eq(low.angle, "devils-advocate")
+    tk.is_true(low.objection:find("strictness threshold", 1, true) ~= nil)
+    tk.eq(core.gate_dissent({ title = "x" }, 60, 45).blocking, false) -- above threshold
+    tk.eq(core.gate_dissent({ title = "x" }, nil, 45).blocking, false) -- no score -> safe
+  end,
+
+  -- #11 (the fix): the injected dissent can now genuinely FLIP a gate verdict. With the
+  -- gate's exact wiring (consensus APPROVES via a stub, dissent built by core.gate_dissent),
+  -- a below-strictness pick is REFUTED while an above-strictness pick PASSES - the advocate
+  -- is no longer decorative.
+  test_gate_dissent_flips_verdict_on_low_score = function()
+    local approve = function(_)
+      return { decision = "approve", reason = "stub-approve" }
+    end
+    local refuted = advocate.review({
+      subject = { title = "confident but low-scored pick", dedup_key = "k" },
+      decide = approve,
+      dissent = function(s)
+        return core.gate_dissent(s, 40, 45)
+      end,
+    })
+    tk.eq(refuted.verdict, "refuted") -- a blocking dissent overrides an approving consensus
+    tk.is_true(refuted.reason:find("strictness threshold", 1, true) ~= nil)
+
+    local passed = advocate.review({
+      subject = { title = "high-scored pick", dedup_key = "k" },
+      decide = approve,
+      dissent = function(s)
+        return core.gate_dissent(s, 60, 45)
+      end,
+    })
+    tk.eq(passed.verdict, "pass") -- above strictness: the dissent does not block
+  end,
+
+  -- #11: subject_with_dissent folds the injected dissent objection into a COPY of the
+  -- subject (never mutating it) and the judge prompt renders it, so the gate deliberates
+  -- against the counter-argument instead of DROPPING request.angles.
+  test_subject_with_dissent_threads_objection_to_judges = function()
+    local subject = { title = "t", root_cause = "a.rs:1" }
+    local angles = { "alignment", { angle = "devils-advocate", objection = "likely a duplicate" } }
+    local folded = core.subject_with_dissent(subject, angles)
+    tk.eq(folded.objection, "likely a duplicate")
+    tk.is_nil(subject.objection) -- the caller's proposal is NOT mutated
+    local prompt = core.build_angle_prompt(folded, "alignment", 1, nil)
+    tk.is_true(prompt:find("Devil's-advocate objection to weigh", 1, true) ~= nil)
+    tk.is_true(prompt:find("likely a duplicate", 1, true) ~= nil)
+    -- no dissent angle in the set -> the subject is returned unchanged (identity).
+    tk.eq(core.subject_with_dissent(subject, { "alignment" }), subject)
   end,
 }

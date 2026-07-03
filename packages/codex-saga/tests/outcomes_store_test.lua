@@ -44,6 +44,34 @@ return {
     tk.is_true(core.outcomes_path():find("/codex-saga/outcomes.jsonl", 1, true) ~= nil)
   end,
 
+  -- Invite-recovery rehydration (integrated Codex review P1): the diagnose-time verification
+  -- fact persisted at engage round-trips record_engaged_verification -> load_engaged_verification,
+  -- so the cron recovery path carries the ACTUAL root_cause_verified (never synthesized from a
+  -- durable label). A dedup_key with NO record loads nil, so open_pr then fails closed.
+  test_engaged_verification_round_trips = function()
+    local opts = { path = fresh_path("engaged-verif") }
+    core.record_engaged_verification(DEDUP, {
+      source_ref = { kind = "external", ref = ORIGINAL_REF },
+      root_cause_verified = true,
+      simulated = false,
+      demo_branch = "codex-saga/fix-openai-codex-1234",
+      picked_score = 0.73,
+      area_labels = { "exec", "bug" },
+      type = "bug",
+      opts = opts,
+    })
+    local loaded = core.load_engaged_verification(DEDUP, opts)
+    tk.is_true(loaded ~= nil)
+    tk.eq(loaded.root_cause_verified, true)
+    tk.eq(loaded.simulated, false)
+    tk.eq(loaded.demo_branch, "codex-saga/fix-openai-codex-1234")
+    tk.eq(loaded.state, "engaged")
+    -- Unknown dedup_key -> nil (open_pr fail-closes on the recovery path).
+    tk.eq(core.load_engaged_verification("codex-triage:candidate:openai/codex#9999", opts), nil)
+    -- A local durable persist performs ZERO foreign writes.
+    tk.eq(foreign_writes(tk.command_calls()), 0)
+  end,
+
   -- The §5 encoder produces valid JSON that round-trips through json.decode,
   -- including the fold fields area_labels + type.
   test_encode_outcome_json_round_trips = function()

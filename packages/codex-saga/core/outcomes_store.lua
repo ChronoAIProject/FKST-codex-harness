@@ -97,6 +97,16 @@ function S.install(M)
     return escape_json_string(s)
   end
 
+  local function encode_bool_or_null(b)
+    if b == true then
+      return "true"
+    end
+    if b == false then
+      return "false"
+    end
+    return "null"
+  end
+
   -- Encode ONE §5 record (field order per the durable-outcomes contract).
   function M.encode_outcome_json(record)
     record = record or {}
@@ -132,6 +142,13 @@ function S.install(M)
       -- Free-text annotation/finding (e.g. "already fixed upstream by #18499"), for the
       -- human/agent review trail. Additive + optional; codex-learn's json.decode ignores it.
       '"note":' .. encode_string_or_null(record.note),
+      -- Invite-recovery rehydration (integrity): the diagnose-time verification fact +
+      -- branch-liveness, persisted at engage so the cron invite-RECOVERY path carries the
+      -- ACTUAL root_cause_verified into open_pr's fail-closed preflight (never synthesized
+      -- from a durable label). Additive + optional (null when absent); codex-learn ignores.
+      '"root_cause_verified":' .. encode_bool_or_null(record.root_cause_verified),
+      '"simulated":' .. encode_bool_or_null(record.simulated),
+      '"demo_branch":' .. encode_string_or_null(record.demo_branch),
     }
     return "{" .. table.concat(fields, ",") .. "}"
   end
@@ -173,6 +190,9 @@ function S.install(M)
       reason = outcome.reason,
       root_cause = outcome.root_cause,
       note = outcome.note,
+      root_cause_verified = outcome.root_cause_verified,
+      simulated = outcome.simulated,
+      demo_branch = outcome.demo_branch,
     }
     local line = M.encode_outcome_json(record)
     local path = opts.path or M.outcomes_path()
@@ -256,6 +276,44 @@ function S.install(M)
       end
     end
     return latest
+  end
+
+  -- record_engaged_verification(dedup_key, fields) -> persist the diagnose-time verification
+  -- fact at engage-time (state="engaged", UNRESOLVED disposition so it is inert to
+  -- codex-learn's fold) so the cron invite-RECOVERY path can rehydrate the ACTUAL
+  -- root_cause_verified / branch-liveness for open_pr's fail-closed preflight instead of
+  -- synthesizing it from a durable label. BEST-EFFORT + local (dry-run-safe, NO foreign
+  -- write): a durable-channel hiccup must never fail the invite pipeline (mirrors
+  -- record_terminal_drop). fields: { source_ref, root_cause_verified, simulated, demo_branch,
+  -- picked_score, area_labels, type, opts? }.
+  function M.record_engaged_verification(dedup_key, fields)
+    fields = fields or {}
+    local outcome = {
+      source_ref = fields.source_ref,
+      picked_score = fields.picked_score,
+      area_labels = fields.area_labels,
+      type = fields.type,
+      engagement_reaction = "none",
+      state = "engaged",
+      root_cause_verified = fields.root_cause_verified,
+      simulated = fields.simulated,
+      demo_branch = fields.demo_branch,
+    }
+    local ok, path = pcall(M.append_outcome, dedup_key, outcome, fields.opts)
+    if ok then
+      return path
+    end
+    return nil
+  end
+
+  -- load_engaged_verification(dedup_key[, opts]) -> the LATEST durable record for dedup_key
+  -- (the persisted engaged-verification unless a later proposed/final record superseded it),
+  -- or nil. invite_watch recovery reads root_cause_verified / demo_branch / simulated off it.
+  function M.load_engaged_verification(dedup_key, opts)
+    if not M.is_nonempty_string(dedup_key) then
+      return nil
+    end
+    return M.latest_outcome_by_dedup(M.read_outcomes(opts))[dedup_key]
   end
 end
 

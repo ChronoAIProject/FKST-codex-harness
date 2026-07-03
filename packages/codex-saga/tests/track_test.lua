@@ -73,6 +73,33 @@ return {
     tk.eq(out.advocate_reason, "r")
   end,
 
+  -- #8/#7: the diagnose/implement/dossier signals (demo_branch, test_command, validation,
+  -- root_cause_verified, reproduced) are LEARNING_KEYS, so the gate auto-propagates them
+  -- through the chain via merge_learning instead of dropping them (the "Prepared fork
+  -- branch"/validation lines were unreachable downstream of the gate before this).
+  test_merge_learning_carries_diagnose_and_implement_signals = function()
+    local keys = {}
+    for _, k in ipairs(core.learning_keys()) do
+      keys[k] = true
+    end
+    for _, expected in ipairs({ "demo_branch", "test_command", "validation", "root_cause_verified", "reproduced" }) do
+      tk.is_true(keys[expected] == true) -- present in the carry set
+    end
+    local out = { schema = "codex-saga.cleared.v1" }
+    core.merge_learning(out, {
+      demo_branch = "codex-saga/fix-openai-codex-1234",
+      test_command = "cargo test -p codex-exec",
+      validation = "added a focused regression test",
+      root_cause_verified = true,
+      reproduced = true,
+    })
+    tk.eq(out.demo_branch, "codex-saga/fix-openai-codex-1234")
+    tk.eq(out.test_command, "cargo test -p codex-exec")
+    tk.eq(out.validation, "added a focused regression test")
+    tk.eq(out.root_cause_verified, true)
+    tk.eq(out.reproduced, true)
+  end,
+
   -- The rendered outcome block is a stable text record (no diffs/bodies) carrying
   -- the §5 fields, parseable later by codex-learn.
   test_render_outcome_is_stable_text = function()

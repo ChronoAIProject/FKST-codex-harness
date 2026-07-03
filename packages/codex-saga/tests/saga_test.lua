@@ -364,7 +364,10 @@ return {
   end,
 
   -- ---- engage ---------------------------------------------------------------
-  -- Dry-run posts NO real foreign write but advances the saga.
+  -- An unverified payload (the current dry-run posture: no real validation, no pushed
+  -- branch) is REFUSED to post and the refusal is TERMINAL: NO foreign write AND NO
+  -- codex_engaged, so the saga never advances into invite/PR handling without a
+  -- substantiated public post (integrated Codex review P1).
   test_engage_dry_run_no_foreign_write = function()
     local result = tk.run_department("departments/engage/main.lua", {
       queue = "codex_cleared",
@@ -378,7 +381,7 @@ return {
       },
     })
     tk.eq(result.exit_code, 0)
-    tk.is_true(raises_of(result, "codex_engaged") >= 1)
+    tk.eq(raises_of(result, "codex_engaged"), 0) -- terminal refuse-to-post: no advance
     -- The defining dry-run assertion: NO real gh/git write was performed.
     tk.eq(#tk.command_calls(), 0)
   end,
@@ -407,7 +410,12 @@ return {
   end,
 
   test_invite_watch_engaged_with_maintainer_invite_raises = function()
-    tk.mock_command("gh issue view", { stdout = '{"assignees":[{"login":"gpeal"}],"comments":[]}' })
+    -- An invite = a maintainer response AFTER our bot engage comment on the upstream thread.
+    tk.mock_command("gh issue view", { stdout = '{"assignees":[],"comments":['
+      .. '{"author":{"login":"codex-bot"},"authorAssociation":"NONE","body":"'
+      .. json_escape(core.engage_marker("codex-triage:candidate:openai/codex#1234")) .. '"},'
+      .. '{"author":{"login":"gpeal"},"authorAssociation":"MEMBER","body":"please open a PR"}'
+      .. ']}' })
     local result = tk.run_department("departments/invite_watch/main.lua", {
       queue = "codex_engaged",
       payload = {
@@ -416,7 +424,7 @@ return {
         source_ref = candidate_ref(),
         control_issue = "7",
       },
-    })
+    }, { env = { FKST_GITHUB_BOT_LOGIN = "codex-bot" } })
     tk.eq(result.exit_code, 0)
     tk.is_true(raises_of(result, "codex_invited") >= 1)
   end,
@@ -432,7 +440,11 @@ return {
     tk.mock_command("gh issue list", {
       stdout = '[{"number":7,"author":{"login":"codex-bot"},"body":"' .. json_escape(body) .. '"}]',
     })
-    tk.mock_command("gh issue view", { stdout = '{"assignees":[{"login":"gpeal"}],"comments":[]}' })
+    tk.mock_command("gh issue view", { stdout = '{"assignees":[],"comments":['
+      .. '{"author":{"login":"codex-bot"},"authorAssociation":"NONE","body":"'
+      .. json_escape(core.engage_marker(dedup)) .. '"},'
+      .. '{"author":{"login":"gpeal"},"authorAssociation":"MEMBER","body":"please open a PR"}'
+      .. ']}' })
     local result = tk.run_department("departments/invite_watch/main.lua", {
       queue = "codex_invite_watch_tick",
       payload = {},
@@ -478,7 +490,11 @@ return {
   -- With a re-derived maintainer invite, open the PR (dry-run) and advance, carrying
   -- the learning metadata to track.
   test_open_pr_proceeds_with_invite_dry_run = function()
-    tk.mock_command("gh issue view", { stdout = '{"assignees":[{"login":"bolinfest"}],"comments":[]}' })
+    tk.mock_command("gh issue view", { stdout = '{"assignees":[],"comments":['
+      .. '{"author":{"login":"codex-bot"},"authorAssociation":"NONE","body":"'
+      .. json_escape(core.engage_marker("codex-triage:candidate:openai/codex#1234")) .. '"},'
+      .. '{"author":{"login":"bolinfest"},"authorAssociation":"MEMBER","body":"please open a PR"}'
+      .. ']}' })
     local result = tk.run_department("departments/open_pr/main.lua", {
       queue = "codex_invited",
       payload = {
@@ -490,8 +506,9 @@ return {
         exemplars_used = { "openai/codex#178" },
         picked_score = 0.73,
         advocate_verdict = "pass",
+        root_cause_verified = true,
       },
-    })
+    }, { env = { FKST_GITHUB_BOT_LOGIN = "codex-bot" } })
     tk.eq(result.exit_code, 0)
     tk.is_true(raises_of(result, "codex_proposed") >= 1)
     local payload = raise_payload(result, "codex_proposed")
