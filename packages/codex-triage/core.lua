@@ -957,4 +957,14 @@ function M.active_remote_claim(claims)
   return nil
 end
 
+function M.active_remote_claim_count(claims)
+  local count = 0
+  for _, stage in pairs(claims or {}) do
+    if not M.remote_claim_is_final(stage) then
+      count = count + 1
+    end
+  end
+  return count
+end
+
 return M

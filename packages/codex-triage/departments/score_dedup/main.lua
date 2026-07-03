@@ -138,13 +138,27 @@ local function act(event)
   end
 
   local cap = tonumber(core.read_env("FKST_TRIAGE_MAX_CANDIDATES")) or 5
+  local slots = cap
+  if cap > 0 and core.remote_claims_enabled() then
+    local active = core.active_remote_claim_count(remote)
+    slots = cap - active
+    log.info(string.format(
+      "codex-triage/score_dedup: active remote claims=%d cap=%d slots=%d",
+      active, cap, slots))
+    if slots <= 0 then
+      log.info(string.format(
+        "codex-triage/score_dedup: active remote claims=%d cap=%d - raising NO candidates this tick.",
+        active, cap))
+      return nil
+    end
+  end
 
   -- Small payloads only: {source_ref, dedup_key, schema, score}. NEVER the body -
   -- the consumer re-fetches via source_ref. A candidate is skipped when EITHER ledger
   -- (local outcome, remote control issue) already settles or claims it.
   local raised = 0
   for _, candidate in ipairs(candidates) do
-    if cap > 0 and raised >= cap then break end
+    if slots > 0 and raised >= slots then break end
     local previous = latest[candidate.dedup_key]
     local locally_settled = previous ~= nil and core.outcome_is_final(previous)
     local remotely_claimed = remote[candidate.dedup_key] ~= nil
@@ -153,8 +167,8 @@ local function act(event)
       raised = raised + 1
     end
   end
-  log.info(string.format("codex-triage/score_dedup: source=%s issues=%d candidates=%d raised=%d cap=%d",
-    source, #issues, #candidates, raised, cap))
+  log.info(string.format("codex-triage/score_dedup: source=%s issues=%d candidates=%d raised=%d cap=%d slots=%d",
+    source, #issues, #candidates, raised, cap, slots))
 
   return nil
 end

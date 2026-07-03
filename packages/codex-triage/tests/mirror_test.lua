@@ -28,6 +28,12 @@ local function outcome_line(dedup_key, disposition, state)
     .. '}\n'
 end
 
+local function empty_outcomes_path(name)
+  local path = (os.getenv("FKST_RUNTIME_ROOT") or ".") .. "/" .. tostring(name)
+  file.write(path, "")
+  return path
+end
+
 -- A Tier-A regression winner (scores ATTEMPT). Shape from worked_on_full.jsonl.
 local function winner(number, reactions)
   return {
@@ -67,7 +73,7 @@ return {
     local result = t.run_department("departments/score_dedup/main.lua", {
       queue = "codex_issue_poll_tick",
       payload = { target = "openai/codex", clusters = {} },
-    })
+    }, { env = { FKST_DURABLE_ROOT = "/tmp/fkst-triage-mirror-test-missing" } })
     t.eq(result.exit_code, 0)
     t.eq(#result.raises, 0)
   end,
@@ -185,7 +191,11 @@ return {
         clusters = {},
         issues = { winner(9002, 70) },
       },
-    }, { env = { FKST_TRIAGE_SINGLE_FLIGHT = "1", FKST_GITHUB_WRITE = "1" } })
+    }, { env = {
+      FKST_TRIAGE_SINGLE_FLIGHT = "1",
+      FKST_GITHUB_WRITE = "1",
+      FKST_TRIAGE_OUTCOMES_PATH = empty_outcomes_path("remote-active-claim-blocks.jsonl"),
+    } })
     t.eq(result.exit_code, 0)
     t.eq(#result.raises, 0)
   end,
@@ -205,10 +215,65 @@ return {
         clusters = {},
         issues = { winner(9001, 80), winner(9002, 70) },
       },
-    }, { env = { FKST_TRIAGE_SINGLE_FLIGHT = "1", FKST_GITHUB_WRITE = "1" } })
+    }, { env = {
+      FKST_TRIAGE_SINGLE_FLIGHT = "1",
+      FKST_GITHUB_WRITE = "1",
+      FKST_TRIAGE_OUTCOMES_PATH = empty_outcomes_path("remote-finalized-claim.jsonl"),
+    } })
     t.eq(result.exit_code, 0)
     t.eq(#result.raises, 1)
     t.eq(result.raises[1].payload.dedup_key, "codex-triage:dup:openai/codex#9002")
+  end,
+
+  -- The cap is a GLOBAL active-claim cap, not "N new candidates per tick": existing
+  -- non-final tracker claims consume slots, so a cap of 3 with 2 active claims raises
+  -- only one fresh candidate.
+  test_remote_active_claims_consume_candidate_slots = function()
+    t.mock_command("gh issue list", {
+      stdout = '[{"number":12,"body":"'
+        .. json_escape("<!-- fkst:codex-saga:control:codex-triage:dup:openai/codex#9001 -->")
+        .. '","labels":[{"name":"codex-saga:candidate"},{"name":"codex-saga:2/6-implement"}]},'
+        .. '{"number":13,"body":"'
+        .. json_escape("<!-- fkst:codex-saga:control:codex-triage:dup:openai/codex#9002 -->")
+        .. '","labels":[{"name":"codex-saga:candidate"},{"name":"codex-saga:4/6-gate"}]}]',
+    })
+    local result = t.run_department("departments/score_dedup/main.lua", {
+      queue = "codex_issue_poll_tick",
+      payload = {
+        target = "openai/codex",
+        clusters = {},
+        issues = { winner(9003, 80), winner(9004, 70), winner(9005, 60) },
+      },
+    }, { env = { FKST_TRIAGE_MAX_CANDIDATES = "3", FKST_GITHUB_WRITE = "1" } })
+    t.eq(result.exit_code, 0)
+    t.eq(#result.raises, 1)
+    t.eq(result.raises[1].payload.dedup_key, "codex-triage:dup:openai/codex#9003")
+  end,
+
+  -- When active remote claims are already at the cap, no new candidates raise even
+  -- without single-flight.
+  test_remote_active_claims_at_cap_raise_nothing = function()
+    t.mock_command("gh issue list", {
+      stdout = '[{"number":12,"body":"'
+        .. json_escape("<!-- fkst:codex-saga:control:codex-triage:dup:openai/codex#9001 -->")
+        .. '","labels":[{"name":"codex-saga:candidate"},{"name":"codex-saga:2/6-implement"}]},'
+        .. '{"number":13,"body":"'
+        .. json_escape("<!-- fkst:codex-saga:control:codex-triage:dup:openai/codex#9002 -->")
+        .. '","labels":[{"name":"codex-saga:candidate"},{"name":"codex-saga:4/6-gate"}]},'
+        .. '{"number":14,"body":"'
+        .. json_escape("<!-- fkst:codex-saga:control:codex-triage:dup:openai/codex#9003 -->")
+        .. '","labels":[{"name":"codex-saga:candidate"},{"name":"codex-saga:5/6-engage"}]}]',
+    })
+    local result = t.run_department("departments/score_dedup/main.lua", {
+      queue = "codex_issue_poll_tick",
+      payload = {
+        target = "openai/codex",
+        clusters = {},
+        issues = { winner(9004, 80), winner(9005, 70) },
+      },
+    }, { env = { FKST_TRIAGE_MAX_CANDIDATES = "3", FKST_GITHUB_WRITE = "1" } })
+    t.eq(result.exit_code, 0)
+    t.eq(#result.raises, 0)
   end,
 
   -- CLOSED = DONE: a closed control issue settles its candidate regardless of labels
@@ -227,7 +292,11 @@ return {
         clusters = {},
         issues = { winner(9001, 80), winner(9002, 70) },
       },
-    }, { env = { FKST_TRIAGE_SINGLE_FLIGHT = "1", FKST_GITHUB_WRITE = "1" } })
+    }, { env = {
+      FKST_TRIAGE_SINGLE_FLIGHT = "1",
+      FKST_GITHUB_WRITE = "1",
+      FKST_TRIAGE_OUTCOMES_PATH = empty_outcomes_path("remote-closed-claim.jsonl"),
+    } })
     t.eq(result.exit_code, 0)
     t.eq(#result.raises, 1)
     t.eq(result.raises[1].payload.dedup_key, "codex-triage:dup:openai/codex#9002")
