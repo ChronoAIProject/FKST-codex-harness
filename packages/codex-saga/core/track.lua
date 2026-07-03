@@ -16,7 +16,16 @@ function S.install(M)
   -- Carried as refs/scalars per the payload-discipline (NEVER diffs or bodies).
   -- `labels` is threaded too so the terminal recorder can derive the §5 area_labels +
   -- type for the rubric re-fit fold (codex-learn), not just calibration.
-  local LEARNING_KEYS = { "picked_score", "exemplars_used", "advocate_verdict", "advocate_reason", "engagement_exemplars", "labels", "consensus_angles", "deliberation_count", "approach", "consensus_rounds", "converge_mode" }
+  -- `demo_branch`/`test_command`/`validation` (implement/dossier -> engage -> open_pr) and
+  -- `root_cause_verified`/`reproduced` (diagnose -> engage) are SMALL scalars (a branch
+  -- name, a command string, a short plan line, booleans) - never diffs/bodies - so they
+  -- ride the same carry as the rest of the credit-assignment metadata. Without them the
+  -- gate DROPS these fields (e.g. the "Prepared fork branch" line went unreachable), so
+  -- add them here to auto-propagate the chain via merge_learning.
+  -- `simulated` (implement's dry-run/failed-push marker) rides too: without it the gate
+  -- drops the truth that a branch was NOT pushed, so engage could render a live link for
+  -- a nonexistent branch in real mode (dossier's branch_is_live check needs it).
+  local LEARNING_KEYS = { "picked_score", "exemplars_used", "advocate_verdict", "advocate_reason", "engagement_exemplars", "labels", "consensus_angles", "deliberation_count", "approach", "consensus_rounds", "converge_mode", "demo_branch", "test_command", "validation", "root_cause_verified", "reproduced", "simulated" }
 
   function M.learning_keys()
     return LEARNING_KEYS

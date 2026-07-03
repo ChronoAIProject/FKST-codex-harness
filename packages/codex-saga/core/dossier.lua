@@ -43,13 +43,49 @@ function S.install(M)
     return t("codex-saga.engage.fix_scope_default")
   end
 
+  -- A prepared fork branch is "live" (safe to render as a tree/compare LINK) ONLY when
+  -- it was actually pushed: a named branch, NOT flagged simulated by the branch step
+  -- (Agent E's `simulated` marker), and running under the real write posture. In
+  -- dry-run the fork push never happens, so a branch is NEVER live - render it honestly
+  -- as prepared-locally, never as a live link (#8; two-plane / dry-run discipline).
+  function M.branch_is_live(payload)
+    payload = payload or {}
+    return M.is_nonempty_string(payload.demo_branch)
+      and payload.simulated ~= true
+      and M.write_mode() == "real"
+  end
+
+  -- Refuse-to-post precondition for the outward dossier (integrity gate #22a). The
+  -- static template is a FALLBACK, not a default: unless the key artifacts are all
+  -- present + VERIFIED - a truly-verified root cause (Agent A), a real validation plan
+  -- (Agent E), and a LIVE pushed fork branch - engage REFUSES to post rather than emit
+  -- unsubstantiated boilerplate. Returns (true) when postable, else (false, reason).
+  function M.dossier_postable(payload)
+    payload = payload or {}
+    if payload.root_cause_verified ~= true then
+      return false, t("codex-saga.engage.refuse_unverified")
+    end
+    -- Real validation artifact: require the actual test COMMAND codex reported running
+    -- (payload.test_command). A non-empty `validation` string is NOT sufficient - the
+    -- honest no-test sentinel ("no test command reported by codex") and the dry-run
+    -- "not run (simulated)" note are both non-empty yet mean nothing was validated.
+    if not M.is_nonempty_string(payload.test_command) then
+      return false, t("codex-saga.engage.refuse_unverified")
+    end
+    if not M.branch_is_live(payload) then
+      return false, t("codex-saga.engage.refuse_unverified")
+    end
+    return true
+  end
+
   -- The dossier comment posted on the openai/codex candidate issue, COMPOSED via
-  -- retrieval-conditioned engagement learning (learning-model §4): the section set is
-  -- driven by the induced engagement_styleguide rules (core.engagement), and the
-  -- comment cites how many nearest SUCCESSFUL engagement threads (retrieved via
-  -- precedent.tfidf over corpus_engagement) it imitates - REFS carried upstream for
-  -- credit assignment, never the threads themselves (payload discipline). ALWAYS ends
-  -- with the mandatory AI-disclosure line (spec §10 gate7).
+  -- retrieval-conditioned engagement learning (learning-model §4): the exemplar order
+  -- prefers relearn's credit-weighted re-ranked bank (core.engagement), and the comment
+  -- cites how many nearest SUCCESSFUL engagement threads (retrieved via precedent.tfidf
+  -- over corpus_engagement) it imitates - REFS carried upstream for credit assignment,
+  -- never the threads themselves (payload discipline). The asserted reproduction /
+  -- root-cause claims are gated on the VERIFIED diagnose facts (#2), never on styleguide
+  -- text. ALWAYS ends with the mandatory AI-disclosure line (spec §10 gate7).
   function M.engage_body(entity, payload)
     payload = payload or {}
     local root_cause = payload.root_cause
@@ -59,22 +95,32 @@ function S.install(M)
     local precedent = M.select_precedent(M.read_corpus(), payload.labels or {})
 
     -- Consume the induced engagement rules + the retrieved engagement exemplars
-    -- (use the refs dossier already retrieved + carried, else retrieve fresh).
+    -- (use the refs dossier already retrieved + carried, else retrieve fresh), then
+    -- PREFER relearn's re-ranked exemplar bank order (#17).
     local rules = M.read_engagement_styleguide()
     local exemplar_refs = payload.engagement_exemplars
     if exemplar_refs == nil then
       exemplar_refs = M.engagement_exemplar_refs(M.retrieve_engagement_exemplars(M.engagement_target(payload, rules)))
     end
+    exemplar_refs = M.rerank_refs_by_bank(exemplar_refs, M.read_engagement_exemplar_bank())
 
     local lines = { t("codex-saga.engage.heading"), "" }
     table.insert(lines, t("codex-saga.engage.intro"))
     table.insert(lines, "")
 
     table.insert(lines, t("codex-saga.engage.breakdown_heading"))
-    if M.styleguide_has(rules, "repro") or M.styleguide_has(rules, "root cause") then
+    -- Asserted reproduction claim: ONLY when the payload's `reproduced` flag is truly
+    -- verified (Agent A). Real reproduction is not implemented yet, so by default this
+    -- line is NOT rendered - we never claim a reproduction we did not perform (#2).
+    if payload.reproduced == true then
       table.insert(lines, "- " .. t("codex-saga.engage.repro_line"))
-      table.insert(lines, "- " .. t("codex-saga.engage.root_cause_label") .. ": " .. tostring(root_cause))
     end
+    -- Root cause: assert only when VERIFIED; otherwise HEDGE ("Suspected root cause"),
+    -- so an unverified diagnosis is never stated as fact (#2).
+    local rc_label = payload.root_cause_verified == true
+      and t("codex-saga.engage.root_cause_label")
+      or t("codex-saga.engage.root_cause_label_suspected")
+    table.insert(lines, "- " .. rc_label .. ": " .. tostring(root_cause))
     table.insert(lines, "- " .. t("codex-saga.engage.impact_label") .. ": " .. M.impact_line(payload))
     table.insert(lines, "")
 
@@ -82,7 +128,17 @@ function S.install(M)
     table.insert(lines, "- " .. M.fix_scope_line(payload))
     table.insert(lines, "- " .. t("codex-saga.engage.validation_label") .. ": " .. M.validation_line(payload))
     if M.is_nonempty_string(payload.demo_branch) then
-      table.insert(lines, "- " .. t("codex-saga.engage.branch_label") .. ": `" .. tostring(payload.demo_branch) .. "`")
+      local branch = tostring(payload.demo_branch)
+      if M.branch_is_live(payload) then
+        -- A real pushed branch: render the tree + cross-fork compare LINK section.
+        table.insert(lines, "- " .. t("codex-saga.engage.branch_label") .. ": ["
+          .. branch .. "](" .. M.branch_url(branch) .. ") · ["
+          .. t("codex-saga.engage.branch_compare") .. "](" .. M.compare_url(branch) .. ")")
+      else
+        -- Not pushed (dry-run / simulated): name it honestly, no live link (#8).
+        table.insert(lines, "- " .. t("codex-saga.engage.branch_label") .. ": `"
+          .. branch .. "` " .. t("codex-saga.engage.branch_simulated_note"))
+      end
     end
     table.insert(lines, "- " .. t("codex-saga.engage.invite_policy"))
     table.insert(lines, "")
@@ -221,12 +277,16 @@ function S.install(M)
     if not M.is_nonempty_string(root_cause) then
       root_cause = "(see linked issue)"
     end
+    -- Hedge the label unless the root cause is VERIFIED (#2 integrity consistency).
+    local rc_label = payload.root_cause_verified == true
+      and t("codex-saga.engage.root_cause_label")
+      or t("codex-saga.engage.root_cause_label_suspected")
     local lines = {
       t("codex-saga.pr.heading"),
       "",
       t("codex-saga.pr.linked"),
       "",
-      t("codex-saga.engage.root_cause_label") .. ": " .. tostring(root_cause),
+      rc_label .. ": " .. tostring(root_cause),
       "",
       t("codex-saga.engage.disclose_ai"),
     }

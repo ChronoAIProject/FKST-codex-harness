@@ -21,11 +21,18 @@ local function done(_event)
 end
 
 local function act(_event)
-  -- Scan the tracker for the candidates we proposed (re-derived read-only from the
-  -- bot-authored control issues). Fail-closed: an unreadable scan yields nothing.
-  for _, candidate in ipairs(core.proposed_candidates()) do
+  -- Broadened reconcile (#12): scan the tracker for ALL marker-bearing control issues by
+  -- the stable `candidate` label across --state all (open/closed, regardless of the
+  -- current phase label), so engagement history relabeled/closed through resets is not
+  -- lost. Read-only re-derivation; fail-closed (an unreadable scan yields nothing). Only
+  -- candidates with a real closing PR upstream produce an outcome record (dry-run has
+  -- none), so this recovers exactly the proposed candidates that reached upstream.
+  local candidates = core.proposed_candidates()
+  local recovered = 0
+  for _, candidate in ipairs(candidates) do
     local derived = core.rederive_candidate_outcome(candidate)
     if derived ~= nil then
+      recovered = recovered + 1
       -- APPEND the re-derived FINAL §5 record (disposition=merged|closed, real ci,
       -- review themes, engagement reaction) to the durable outcomes JSONL -
       -- UNCONDITIONAL (NOT gated by the GitHub outcome_marker). Latest-wins by
@@ -53,6 +60,10 @@ local function act(_event)
       })
     end
   end
+  -- Reconcile summary (describes EXACTLY what was recovered: candidates scanned by the
+  -- broadened marker query, and how many had a real closing PR whose outcome was refreshed).
+  log.info(string.format("codex-saga/outcome_watch reconcile: scanned=%d recovered=%d marker-bearing control issues",
+    #candidates, recovered))
 end
 
 return saga.department(spec, {

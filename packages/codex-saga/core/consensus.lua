@@ -16,14 +16,30 @@
 -- foreign-plane write.
 local S = {}
 
+-- The devil's-advocate library (pure, dependency-inverted). Reused here so the gate's
+-- BLOCKING dissent shares one canonical dissent shape with the offline calibration
+-- simulator (codex-learn calibrate.gate_verdict) instead of a divergent copy.
+local advocate = require("advocate.gate")
+
 -- The angles applied to a proposed engagement (each judged independently).
 -- `approach` is the defence voice: it judges the actual fix plan.
 local ANGLES = { "alignment", "blast_radius", "approach" }
 
 local DEFAULT_MAX_ROUNDS = 3
 
+-- The advocate's blocking threshold seed (learning-model §3/§9). Modeled as a
+-- picked_score threshold on the METHODOLOGY 0-100 scale; the seed is the CANDIDATE
+-- bin boundary (METHODOLOGY §5), matching codex-learn's DEFAULT_STRICTNESS so the
+-- gate and the offline calibrator agree. codex-learn re-fits it from outcomes and
+-- publishes it on the rubric (advocate_calibration.strictness); the gate consumes
+-- the published value when present (M.advocate_strictness).
+local DEFAULT_STRICTNESS = 45
+
+local RUBRIC_FILE = "area_rubric.json"
+
 function S.install(M)
   M.consensus_angles = ANGLES
+  M.DEFAULT_ADVOCATE_STRICTNESS = DEFAULT_STRICTNESS
 
   function M.consensus_max_rounds()
     local n = tonumber(M.read_env("FKST_CONSENSUS_MAX_ROUNDS"))
@@ -31,6 +47,93 @@ function S.install(M)
       return DEFAULT_MAX_ROUNDS
     end
     return n
+  end
+
+  -- The published rubric lives beside the seed corpus (FKST_SAGA_DATA_DIR, default
+  -- "data"); codex-learn overwrites it on an accepted relearn cycle.
+  function M.rubric_path()
+    local dir = M.env_or("FKST_SAGA_DATA_DIR", "data")
+    return dir .. "/" .. RUBRIC_FILE
+  end
+
+  -- advocate_strictness([opts]) -> the CALIBRATED advocate strictness threshold
+  -- (learning-model §3/§9). Reads advocate_calibration.strictness off the published
+  -- rubric (codex-learn writes it); FAIL-SAFE: any missing file / unparseable JSON /
+  -- absent calibration returns the seed DEFAULT_STRICTNESS, so the gate never crashes
+  -- and a never-calibrated loop keeps the permissive CANDIDATE-boundary seed (which,
+  -- being below the ATTEMPT floor, blocks nothing until learning tightens it).
+  -- opts.path overrides the rubric path (tests).
+  function M.advocate_strictness(opts)
+    opts = opts or {}
+    local path = opts.path or M.rubric_path()
+    if not file.exists(path) then
+      return DEFAULT_STRICTNESS
+    end
+    local ok, text = pcall(file.read, path)
+    if not ok or type(text) ~= "string" or text == "" then
+      return DEFAULT_STRICTNESS
+    end
+    local decoded, rubric = pcall(json.decode, text)
+    if not decoded or type(rubric) ~= "table" then
+      return DEFAULT_STRICTNESS
+    end
+    local cal = rubric.advocate_calibration
+    if type(cal) ~= "table" then
+      return DEFAULT_STRICTNESS
+    end
+    local strictness = tonumber(cal.strictness)
+    if strictness == nil then
+      return DEFAULT_STRICTNESS
+    end
+    return strictness
+  end
+
+  -- gate_dissent(subject, picked_score, strictness) -> the gate's devil's-advocate
+  -- angle. It is BLOCKING when the pick's confidence (picked_score) is below the
+  -- calibrated strictness threshold - the SAME rule the offline calibration simulator
+  -- models (codex-learn calibrate.gate_verdict). A blocking dissent flips an otherwise
+  -- -approving consensus to "refuted" in advocate.combine, so the devil's-advocate can
+  -- genuinely refuse a low-confidence pick (learning-model §9 guardrail) rather than
+  -- rubber-stamp it. An absent/non-numeric score or strictness -> non-blocking (safe).
+  function M.gate_dissent(subject, picked_score, strictness)
+    local dissent = advocate.build_dissent(subject) -- default non-blocking refutation angle
+    local score = tonumber(picked_score)
+    local threshold = tonumber(strictness)
+    if score ~= nil and threshold ~= nil and score < threshold then
+      dissent.blocking = true
+      dissent.objection = string.format(
+        "picked_score %s is below the calibrated advocate strictness threshold %s: the "
+          .. "pick is too low-confidence to propose without stronger evidence to proceed.",
+        tostring(score), tostring(threshold))
+    end
+    return dissent
+  end
+
+  -- subject_with_dissent(subject, angles) -> a shallow COPY of the consensus subject
+  -- with the injected devil's-advocate objection folded in as `.objection`, so the gate
+  -- does NOT drop the dissent (advocate.review appends it to `request.angles`): the
+  -- consensus judges then deliberate against it (build_angle_prompt renders it). Never
+  -- MUTATES the caller's proposal; no dissent found -> the subject is returned unchanged.
+  function M.subject_with_dissent(subject, angles)
+    if type(subject) ~= "table" or type(angles) ~= "table" then
+      return subject
+    end
+    local objection = nil
+    for _, angle in ipairs(angles) do
+      if type(angle) == "table" and angle.angle == "devils-advocate"
+        and M.is_nonempty_string(angle.objection) then
+        objection = angle.objection
+      end
+    end
+    if objection == nil then
+      return subject
+    end
+    local copy = {}
+    for k, v in pairs(subject) do
+      copy[k] = v
+    end
+    copy.objection = objection
+    return copy
   end
 
   -- Build the read-only judge prompt for one angle and one round. English source
@@ -47,6 +150,14 @@ function S.install(M)
     }
     if M.is_nonempty_string(proposal.approach) then
       lines[#lines + 1] = "Proposed fix approach: " .. tostring(proposal.approach)
+    end
+    -- The devil's-advocate objection (the injected dissent) is threaded through so the
+    -- judges deliberate AGAINST the strongest counter-argument instead of the gate
+    -- silently dropping it (see M.subject_with_dissent). It is codex-derived / gate-built
+    -- data, weighed as a position - not an instruction.
+    if M.is_nonempty_string(proposal.objection) then
+      lines[#lines + 1] = "Devil's-advocate objection to weigh against approving: "
+        .. tostring(proposal.objection)
     end
     if type(round) == "number" and round > 1 and type(prior) == "table" then
       -- Prior rationales are UNTRUSTED DATA (codex output derived from a public,

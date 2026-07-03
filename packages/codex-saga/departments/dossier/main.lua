@@ -37,15 +37,23 @@ local function act(event)
   local rules = core.read_engagement_styleguide()
   local engagement_exemplars = core.engagement_exemplar_refs(
     core.retrieve_engagement_exemplars(core.engagement_target(payload, rules)))
+  -- #17: PREFER relearn's credit-weighted re-ranked exemplar bank order over the raw
+  -- TF-IDF order (no-op until relearn has produced a styleguide with a bank section).
+  engagement_exemplars = core.rerank_refs_by_bank(engagement_exemplars, core.read_engagement_exemplar_bank())
   if #engagement_exemplars > 0 then
     log.info("codex-saga/dossier engagement exemplars=" .. tostring(#engagement_exemplars))
   end
 
   -- Reference the REAL fix branch implement wrote (falling back to the deterministic
   -- name). Dry-run by default: logs the intended push and returns without any real
-  -- push (gated on FKST_GITHUB_WRITE=1).
+  -- push (gated on FKST_GITHUB_WRITE=1). Capture the intent so we can carry an HONEST
+  -- `simulated` flag: the branch is a live tree/compare link downstream ONLY when the
+  -- push actually landed (real mode, exit 0) - never in dry-run (#8).
   local branch = payload.demo_branch or ("codex-saga/fix-" .. core.safe_segment(dedup_key))
-  core.fork_push_intent(core.fork_local_path(), branch, dedup_key)
+  local push_intent = core.fork_push_intent(core.fork_local_path(), branch, dedup_key)
+  local branch_pushed = type(push_intent) == "table"
+    and push_intent.mode == "real"
+    and push_intent.exit_code == 0
 
   local raised = {
     schema = "codex-saga.dossier.v1",
@@ -58,7 +66,15 @@ local function act(event)
     crate = payload.crate,
     -- the retrieved engagement exemplar refs condition the engage comment.
     engagement_exemplars = engagement_exemplars,
+    -- Honest branch-liveness signal for engage (#8): the demo branch is a live link only
+    -- when it was actually pushed. `simulated` is NOT a LEARNING_KEY, so set it here
+    -- explicitly (merge_learning carries reproduced/root_cause_verified/validation/
+    -- test_command). PM-NEEDS: add `simulated` to LEARNING_KEYS so it survives gate->engage.
+    simulated = (payload.simulated == true) or (not branch_pushed),
   }
+  -- Note: reproduced / root_cause_verified (Agent A) + validation / test_command (Agent E)
+  -- arrive via core.merge_learning below (they are LEARNING_KEYS) and feed the #2 asserted-
+  -- claim gate + the #7 validation line at engage.
   -- Thread the learning metadata (picked_score, advocate verdict) toward track, and
   -- fold the engagement exemplar refs into exemplars_used for credit assignment
   -- (alongside the implement PR-style exemplars).
@@ -74,8 +90,14 @@ local function act(event)
   core.record_transition(dedup_key, "dossier", {
     detail = precedent ~= nil and ("precedent: #" .. tostring(precedent.number)
       .. " " .. tostring(precedent.title or "")) or nil,
-    summary = "fix branch [" .. branch .. "](" .. core.branch_url(branch) .. ")"
-      .. " · [compare vs upstream](" .. core.compare_url(branch) .. ")"
+    -- Honest branch line on the board: a live tree/compare LINK only when the push actually
+    -- landed (real mode, exit 0); otherwise the bare name + a not-pushed note, mirroring the
+    -- outward dossier's branch_is_live rendering so the tracker never claims a branch that
+    -- was never pushed (integrated Codex review P2 / #8).
+    summary = (branch_pushed
+        and ("fix branch [" .. branch .. "](" .. core.branch_url(branch) .. ")"
+          .. " · [compare vs upstream](" .. core.compare_url(branch) .. ")")
+        or ("fix branch `" .. branch .. "` (prepared locally — not pushed)"))
       .. " · engagement exemplars: " .. tostring(#engagement_exemplars),
   })
   raise("codex_dossier", raised)

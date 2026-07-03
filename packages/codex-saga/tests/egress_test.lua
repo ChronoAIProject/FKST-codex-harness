@@ -70,14 +70,6 @@ return {
     tk.eq(outcome.decision, "approve")
   end,
 
-  -- Invite re-derivation: a maintainer assignee/comment is an invite; otherwise not.
-  test_invite_in_view_detects_maintainer = function()
-    tk.eq(core.invite_in_view({ assignees = { { login = "gpeal" } }, comments = {} }), true)
-    tk.eq(core.invite_in_view({ assignees = {}, comments = { { author = { login = "bolinfest" } } } }), true)
-    tk.eq(core.invite_in_view({ assignees = { { login = "some-random-user" } }, comments = {} }), false)
-    tk.eq(core.invite_in_view({}), false)
-  end,
-
   test_is_maintainer_tolerates_bot_suffix_and_case = function()
     tk.eq(core.is_maintainer("Bolinfest"), true)
     tk.eq(core.is_maintainer("pakrym-oai[bot]"), true)

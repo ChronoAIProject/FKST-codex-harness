@@ -127,9 +127,18 @@ function S.install(M)
   -- Scan the tracker for the proposed/tracked candidates we recorded an outcome for:
   -- bot-authored control issues carrying the control marker + original source_ref.
   -- READ-ONLY; fail-closed (an unreadable scan yields no candidates).
+  --
+  -- Broadened reconcile (#12): scan by the STABLE `candidate` label across --state all
+  -- (open AND closed), NOT only currently-`engaged`-labeled issues. The candidate label
+  -- is present from adopt through terminal and is never removed, so engagement history
+  -- archived/relabeled/closed through resets keeps its control issue + markers and is
+  -- still recovered here. Recovery stays bounded to candidates with a real closing PR
+  -- (rederive_candidate_outcome returns nil otherwise, and dry-run has none), so nothing
+  -- is over-claimed - only candidates that actually reached upstream produce an outcome.
   function M.proposed_candidates(exec)
     local bot = M.bot_login()
-    local list = M.gh_read(M.gh_issue_list_argv(M.tracker_repo(), M.state_label("engaged"), "number,body,author"), exec)
+    local list = M.gh_read(M.gh_issue_list_argv(M.tracker_repo(), M.candidate_label(),
+      "number,body,author", "all", 1000), exec)
     if type(list) ~= "table" then
       return {}
     end
@@ -146,9 +155,47 @@ function S.install(M)
     return out
   end
 
+  -- codex-learn's RESOLVED (terminal, foldable) disposition set. `ignored` is a resolved
+  -- negative outcome, alongside merged/closed - a candidate the loop carried upstream but
+  -- that never earned an invite within the wait window.
+  local RESOLVED_DISPOSITIONS = { merged = true, closed = true, ignored = true }
+  function M.is_resolved_disposition(disposition)
+    return type(disposition) == "string" and RESOLVED_DISPOSITIONS[disposition] == true
+  end
+
+  -- #16: emit a TERMINAL "ignored" outcome for an engaged candidate whose invite-wait
+  -- window elapsed with NO maintainer invite (learning-model resolved set, aligned with
+  -- the saga on_timeout="needs_invite" terminal). Inherits the small §5 fold fields from
+  -- the prior durable record (if any) and appends the terminal record (disposition=
+  -- "ignored", engagement_reaction="none", plus state="needs_invite"/reason for the
+  -- scoreboard). This is a LOCAL durable append only; NO foreign write. Idempotent: skips
+  -- once a resolved terminal outcome already exists for the candidate, so repeated cron
+  -- ticks don't re-append. opts.path targets the durable JSONL (tests use
+  -- FKST_LEARNING_OUTCOMES_PATH / an explicit path). control_issue is accepted for the
+  -- caller's log context; the visible control-issue board mirror for needs_invite is a
+  -- follow-up (needs a `codex-saga.progress.needs_invite` locale key).
+  function M.record_invite_ignored(dedup_key, source_ref, control_issue, opts)
+    local prior = M.latest_outcome_by_dedup(M.read_outcomes(opts))[dedup_key]
+    if type(prior) == "table" and M.is_resolved_disposition(prior.disposition) then
+      return nil
+    end
+    local outcome = M.build_outcome(M.prior_outcome_fields(prior, source_ref))
+    outcome.engagement_reaction = "none"
+    outcome.disposition = "ignored"
+    outcome.state = "needs_invite"
+    outcome.reason = "invite_wait_elapsed"
+    M.append_outcome(dedup_key, outcome, opts)
+    log.info(string.format(
+      "codex-saga/invite: invite-wait elapsed with no invite -> disposition=ignored dedup_key=%s control_issue=%s",
+      tostring(dedup_key), tostring(control_issue)))
+    return outcome
+  end
+
   -- Locate the candidate's closing PR (the deterministic fork->upstream branch) and
-  -- re-derive its outcome. READ-ONLY. Returns the §5 facts, or nil when no PR exists
-  -- yet (e.g. dry-run: no real PR was ever opened).
+  -- re-derive its outcome. READ-ONLY. Returns the §5 facts, or nil when no PR exists yet
+  -- (e.g. dry-run: no real PR was ever opened) OR the PR has not reached a TERMINAL
+  -- disposition (an OPEN PR stays disposition="proposed" - still in flight, so keep
+  -- watching rather than over-claiming it as closed). Only merged|closed is recovered.
   function M.rederive_candidate_outcome(candidate, exec)
     local branch = "codex-saga/fix-" .. M.safe_segment(candidate.dedup_key)
     local fork_owner = (M.fork_repo():match("^(.-)/") or "fork")
@@ -161,7 +208,11 @@ function S.install(M)
     if type(view) ~= "table" then
       return nil
     end
-    return M.derive_pr_outcome(view)
+    local derived = M.derive_pr_outcome(view)
+    if not M.is_resolved_disposition(derived.disposition) then
+      return nil
+    end
+    return derived
   end
 end
 

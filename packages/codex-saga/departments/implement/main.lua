@@ -64,6 +64,11 @@ local function act(event)
     return nil
   end
 
+  -- A dry-run/demo write creates NO branch and pushes NOTHING: mark the transition +
+  -- payload `simulated` so the board (and downstream dossier/engage, Agent F) never
+  -- assert a real branch/test that does not exist. Real writes carry simulated=false.
+  local simulated = result.simulated == true
+
   local raised = {
     schema = "codex-saga.implemented.v1",
     source_ref = entity,
@@ -79,13 +84,34 @@ local function act(event)
     -- the codex-reported one-line fix approach (bounded, sanitized scalar - NOT a
     -- diff/body): threaded to the gate so the consensus judges defend the real plan.
     approach = result.approach,
+    -- Honest write posture + the REAL validation facts (#6/#7): `simulated` so no
+    -- downstream renders a nonexistent branch as real; `test_command`/`validation` so
+    -- the dossier "Validation plan" reflects what was ACTUALLY run (or "not run
+    -- (simulated)" in dry-run), never the hardcoded default.
+    simulated = simulated,
+    test_command = result.test_command,
+    validation = result.validation,
   }
-  core.record_transition(dedup_key, "implemented", {
-    -- Board links: the fix branch on the fork + the exact upstream compare diff.
+  -- Thread the small learning fields toward gate->engage->track (credit assignment).
+  -- test_command + validation are LEARNING_KEYS (core.track), so this propagates the
+  -- real validation facts to the gate/engage renderers without re-deriving them.
+  core.merge_learning(raised, payload)
+
+  -- Board detail: link the fix branch + upstream compare ONLY for a real pushed branch.
+  -- For a simulated write, name the intended branch but do NOT hyperlink it (no branch
+  -- exists) - label it plainly so the board never asserts a real branch.
+  local detail
+  if simulated then
+    detail = "fix branch `" .. branch .. "` (simulated — no branch pushed)"
+  else
     detail = "fix branch [" .. branch .. "](" .. core.branch_url(branch) .. ")"
-      .. " · [compare vs upstream](" .. core.compare_url(branch) .. ")",
+      .. " · [compare vs upstream](" .. core.compare_url(branch) .. ")"
+  end
+  core.record_transition(dedup_key, "implemented", {
+    detail = detail,
     files = result.files, -- codex-reported changed paths
     summary = result.approach, -- codex's WHAT the fix changes + HOW the test proves it
+    simulated = simulated,
   })
   raise("codex_implemented", raised)
 end

@@ -68,10 +68,14 @@ local function act(event)
     })
   end
 
-  -- gate0: security/safety issues are routed privately and NEVER posted publicly.
+  -- gate0: security/safety issues are NEVER posted publicly. There is NO automated
+  -- private-disclosure path (building one is out of scope), so we do NOT fabricate a
+  -- report: the candidate is DROPPED here and routed nowhere. A human maintainer must
+  -- report it out-of-band (e.g. security@openai.com) by hand if warranted.
   if has_security_label(payload.labels) then
     log.warn("codex-saga/gate gate0 drop: " .. t("codex-saga.gate.refuse_security"))
-    log.info("codex-saga/gate: would route security report privately to security@openai.com")
+    log.info("codex-saga/gate: no automated private-disclosure path exists; the "
+      .. "security candidate is DROPPED and routed NOWHERE (a maintainer must report it by hand).")
     refuse("security")
     return nil
   end
@@ -115,11 +119,25 @@ local function act(event)
     approach = payload.approach,
     source_ref = entity,
   }
+  -- The advocate's blocking threshold is the CALIBRATED strictness (learning-model
+  -- §3/§9): codex-learn re-fits it from real outcomes and publishes it on the rubric;
+  -- the gate consumes it here so a persistently over-lenient advocate tightens (and an
+  -- over-strict one loosens). A low-confidence pick (picked_score below strictness)
+  -- draws a BLOCKING dissent that refutes even an approving consensus - the guardrail
+  -- against the loop rubber-stamping its own confident picks.
+  local strictness = core.advocate_strictness()
+  local picked_score = payload.score
   local verdict = advocate.review({
     decide = function(request)
-      return core.consensus_decide(request.subject)
+      -- Do NOT drop request.angles: fold the injected dissent's objection into the
+      -- consensus subject so the judges deliberate against the strongest counter
+      -- -argument, then advocate.combine folds in the fail-closed dissent verdict.
+      return core.consensus_decide(core.subject_with_dissent(request.subject, request.angles))
     end,
     subject = proposal,
+    dissent = function(subject)
+      return core.gate_dissent(subject, picked_score, strictness)
+    end,
   })
   -- Surface the deliberation: the FINAL-round per-angle map + the totals + the full
   -- multi-round transcript (board audit log) - on both the refuse and pass paths.

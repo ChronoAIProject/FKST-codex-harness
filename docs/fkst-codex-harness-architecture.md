@@ -51,7 +51,7 @@ fkst-codex-harness/
       tests/*_test.lua
     codex-saga/
       core.lua
-      departments/diagnose/main.lua      #   reproduce + bisect + root-cause on the fork
+      departments/diagnose/main.lua      #   codex read-only worktree run + root-cause (file:line, verified) on the fork
       departments/dossier/main.lua       #   story (precedent) + demo branch push
       departments/gate/main.lua          #   consensus + invite-precondition + caps
       departments/engage/main.lua        #   gh issue/comment on openai/codex
@@ -137,7 +137,7 @@ program-produced (labels/markers), never hand-edited.
 [dept]  score_dedup                rubric + clusters ─► attemptable        (R1–R4; AUC 0.73)
             ▼
 [dept]  diagnose                   sdk_git worktree on fork + spawn_codex_sync:
-                                   reproduce → git bisect → root cause (file:line) ─► diagnosed
+                                   codex read-only worktree run → root cause (file:line, path/line verified) ─► diagnosed
             │ not reproduced → needs_info (drop)
             ▼
 [dept]  dossier                    story (precedent from worked_on corpus) + demo branch push

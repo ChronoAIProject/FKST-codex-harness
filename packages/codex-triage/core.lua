@@ -44,18 +44,114 @@ end
 -- (attempt funnel order). Callers use core.* exactly as before.
 -- ---------------------------------------------------------------------------
 M.normalize_labels = rubric.normalize_labels
-M.area_tier = rubric.area_tier
 M.type_bonus = rubric.type_bonus
 M.anatomy = rubric.anatomy
 M.demand = rubric.demand
-M.classify = rubric.classify
-M.score = rubric.score
 M.cluster_index = rubric.cluster_index
 M.dedup_key = rubric.dedup_key
 M.is_cluster_representative = rubric.is_cluster_representative
 M.candidate_source_ref = rubric.candidate_source_ref
 M.candidate_payload = rubric.candidate_payload
-M.attempt_candidates = rubric.attempt_candidates
+-- Pure config builders re-exported so consumers/tests can derive a scorer config without IO.
+M.tier_sets_from_rubric = rubric.tier_sets_from_rubric
+M.weights_from_selection_model = rubric.weights_from_selection_model
+M.default_rubric_config = rubric.default_config
+
+-- ---------------------------------------------------------------------------
+-- Rubric-config loading (closing the learning loop). The scorer library is PURE and
+-- never reads disk; the re-derived tiers + fitted selection_model live in
+-- data/area_rubric.json, which codex-learn rewrites on an accepted relearn cycle. THIS
+-- (impure) layer reads that file and injects the config into the pure scorer so the
+-- relearned weights ACTUALLY move selection instead of being shadow artifacts. Absent /
+-- unreadable / pre-fit -> nil, and the scorer falls back to the committed §5 literals.
+-- ---------------------------------------------------------------------------
+
+-- build_rubric_config(rubric) -> the scorer config, or nil. PURE: takes an already-decoded
+-- area_rubric.json table, extracts the re-derived tiers (areas[name].tier) + the fitted
+-- selection_model weights (as SCALE-PRESERVING re-emphasis multipliers), and returns
+-- {tiers?, weights?}. Pieces that are absent/degenerate are OMITTED so the scorer keeps its
+-- literal calibration for them.
+--
+-- Thresholds are deliberately NOT injected from selection_model.bins: those bins are per-bin
+-- WIN RATES (codex-learn/core/fit.lua), not §5 score cutpoints, so they cannot honestly
+-- become 58/45/32. The scale-preserving weight mapping keeps the max attainable score
+-- invariant, so the committed bins stay on the calibrated §5 score scale without re-deriving
+-- thresholds (METHODOLOGY §6/§10). See rubric.weights_from_selection_model for the honest
+-- scope note (this is a bounded re-emphasis, not the accepted logit model).
+function M.build_rubric_config(rubric_table)
+  if type(rubric_table) ~= "table" then
+    return nil
+  end
+  local cfg = {}
+  local tiers = rubric.tier_sets_from_rubric(rubric_table)
+  if tiers ~= nil then
+    cfg.tiers = tiers
+  end
+  local weights = rubric.weights_from_selection_model(rubric_table.selection_model)
+  if weights ~= nil then
+    cfg.weights = weights
+  end
+  if next(cfg) == nil then
+    return nil
+  end
+  return cfg
+end
+
+-- load_rubric_config([opts]) -> read + decode data/area_rubric.json (mirrors
+-- codex-learn/core/io.lua read_rubric) and build the scorer config, or nil (FAIL-SOFT ->
+-- committed literals). Path precedence: opts.path > FKST_TRIAGE_RUBRIC_PATH >
+-- FKST_LEARNING_RUBRIC_PATH (the codex-learn writer's key) > "data/area_rubric.json".
+-- opts.rubric short-circuits the read (tests inject a decoded table, no IO).
+function M.load_rubric_config(opts)
+  opts = opts or {}
+  if opts.rubric ~= nil then
+    return M.build_rubric_config(opts.rubric)
+  end
+  if type(file) ~= "table" or type(file.read) ~= "function" then
+    return nil
+  end
+  local path = opts.path or M.read_env("FKST_TRIAGE_RUBRIC_PATH")
+    or M.read_env("FKST_LEARNING_RUBRIC_PATH") or "data/area_rubric.json"
+  if type(file.exists) == "function" and not file.exists(path) then
+    return nil
+  end
+  local ok, text = pcall(file.read, path)
+  if not ok or type(text) ~= "string" or text == "" then
+    return nil
+  end
+  if type(json) ~= "table" or type(json.decode) ~= "function" then
+    return nil
+  end
+  local ok2, parsed = pcall(json.decode, text)
+  if not ok2 or type(parsed) ~= "table" then
+    return nil
+  end
+  return M.build_rubric_config(parsed)
+end
+
+-- Scorer surface: thin wrappers over the PURE library that thread the OPTIONAL rubric
+-- config. A config-less call reproduces the committed §5 literals (tests/direct callers
+-- stay pure). attempt_candidates is the production entry point (score_dedup department):
+-- it loads the config ONCE per tick when none is injected, so the fitted rubric flows into
+-- every per-issue score without the department having to know about it.
+function M.score(issue, config)
+  return rubric.score(issue, config)
+end
+
+function M.area_tier(labels, config)
+  return rubric.area_tier(labels, config)
+end
+
+function M.classify(score, tier, issue_type, repro_ok, config)
+  return rubric.classify(score, tier, issue_type, repro_ok, config)
+end
+
+function M.attempt_candidates(issues, index, repo, config)
+  if config == nil then
+    config = M.load_rubric_config()
+  end
+  return rubric.attempt_candidates(issues, index, repo, config)
+end
 
 -- ---------------------------------------------------------------------------
 -- PRODUCTION side-effecting helpers (never exercised by tests; the department
@@ -164,23 +260,36 @@ end
 
 -- load_clusters: read the seed cluster corpus (data/open_issue_clusters.json) by
 -- source_ref, never inlined. Fails soft to {} (degrades to no-dedup) so a missing
--- file never crashes the poll.
+-- file never crashes the poll -- but LOUD: a silent degrade to no-dedup is an outward
+-- behavior change (duplicate-engagement risk), so every degradation is logged at WARNING
+-- with its cause + path (fail-soft, never fail-silent). #19.
+local function clusters_warn(reason, path)
+  if type(log) == "table" and type(log.warn) == "function" then
+    log.warn("codex-triage: cluster corpus unusable (" .. reason .. ") at "
+      .. tostring(path) .. " - dedup DISABLED this tick (duplicate-engagement risk).")
+  end
+end
+
 function M.load_clusters()
+  local path = M.read_env("FKST_TRIAGE_CLUSTERS_PATH") or "data/open_issue_clusters.json"
   if type(file) ~= "table" or type(file.read) ~= "function" then
+    clusters_warn("no file adapter", path)
     return {}
   end
-  local path = M.read_env("FKST_TRIAGE_CLUSTERS_PATH") or "data/open_issue_clusters.json"
   local ok, text = pcall(function()
     return file.read(path)
   end)
   if not ok or type(text) ~= "string" or text == "" then
+    clusters_warn("missing or empty", path)
     return {}
   end
   if type(json) ~= "table" or type(json.decode) ~= "function" then
+    clusters_warn("no json decoder", path)
     return {}
   end
   local ok2, parsed = pcall(json.decode, text)
   if not ok2 or type(parsed) ~= "table" then
+    clusters_warn("undecodable json", path)
     return {}
   end
   return parsed

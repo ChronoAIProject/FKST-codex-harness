@@ -8,13 +8,23 @@
 -- -fetched issue table / parsed cluster array in; the library never reads disk.
 -- Payload discipline (spec §6): the candidate payload carries only
 -- {source_ref, schema, dedup_key, score} - NEVER the issue body.
+--
+-- Config injection (closing the learning loop): R.score / R.classify / R.area_tier /
+-- R.attempt_candidates take an OPTIONAL rubric-config table (tiers / tier_points /
+-- thresholds / component weights). ABSENT fields fall back to the committed §5 literals,
+-- so a config-less call reproduces today's calibrated scores byte-for-byte. The IMPURE
+-- consumer (codex-triage/core.lua) reads data/area_rubric.json and builds the config from
+-- the re-derived tiers + the fitted selection_model, so codex-learn's re-learned weights
+-- ACTUALLY influence selection instead of being shadow artifacts. This library only
+-- APPLIES a config; it never reads disk, so it stays pure.
 local R = {}
 
 -- ---------------------------------------------------------------------------
--- Area tiers (METHODOLOGY §3 R1). Embedded tier map keyed exactly to §3 so
--- callers/tests need no IO. `config` is Tier-A (METHODOLOGY §3/§8 key-areas
--- list); the B/C/D split refines the §3 prose with the data/area_rubric.json
--- fix-rate tiers.
+-- Area tiers (METHODOLOGY §3 R1). Embedded literal tier map keyed exactly to §3 so a
+-- config-less caller/test needs no IO. `config` is Tier-A (METHODOLOGY §3/§8 key-areas
+-- list) and data/area_rubric.json is reconciled to tag it "A_target" to match; the B/C/D
+-- split refines the §3 prose with the data/area_rubric.json fix-rate tiers. These literals
+-- are the DEFAULT; an injected config.tiers (built from area_rubric.json) overrides them.
 -- ---------------------------------------------------------------------------
 local TIER_A = {
   "exec", "regression", "tui", "mcp", "hooks", "custom-model", "documentation", "config",
@@ -39,7 +49,7 @@ local function build_set(list)
   return set
 end
 
-local TIER_SETS = {
+local DEFAULT_TIER_SETS = {
   A = build_set(TIER_A),
   B = build_set(TIER_B),
   C = build_set(TIER_C),
@@ -47,10 +57,160 @@ local TIER_SETS = {
 }
 
 -- Hard-drop labels (METHODOLOGY §5: label in {safety-check, security} -> SKIP-security).
+-- Security routing is a policy INVARIANT, not a fix-rate tier, so it stays a fixed literal
+-- and is NEVER overridable by an injected/relearned rubric.
 local SECURITY_LABELS = build_set({ "safety-check", "security" })
 
 -- area_tier points (METHODOLOGY §5). D is a hard drop (handled before scoring).
-local TIER_POINTS = { A = 40, B = 24, C = 12, unknown = 8, D = 0 }
+local DEFAULT_TIER_POINTS = { A = 40, B = 24, C = 12, unknown = 8, D = 0 }
+
+-- §5 bin thresholds (the funnel gates) and per-component multipliers. Defaults reproduce
+-- the committed calibration; an injected config overrides them (see resolve_config).
+local DEFAULT_THRESHOLDS = { attempt = 58, candidate = 45, low = 32 }
+local DEFAULT_WEIGHTS = { area = 1.0, type = 1.0, anatomy = 1.0, demand = 1.0 }
+
+local COMPONENT_KEYS = { "area", "type", "anatomy", "demand" }
+
+-- Map data/area_rubric.json fix-rate tier TAGS -> METHODOLOGY §3 tier letters.
+local TIER_TAG_TO_LETTER = {
+  A_target = "A",
+  B_good = "B",
+  C_only_if_strong_evidence = "C",
+  D_avoid_graveyard = "D",
+}
+
+-- The rubric-proportional prior the selection re-fit (codex-learn/core/fit.lua) initializes
+-- from, and the METHODOLOGY §5 per-component maxima the fit normalizes against. A fitted
+-- weight becomes a rubric multiplier RELATIVE to this prior (fitted / prior), then the
+-- multipliers are re-normalized to be SCALE-PRESERVING (see weights_from_selection_model).
+local FIT_WEIGHT_PRIOR = { area = 1.0, type = 0.6, anatomy = 0.5, demand = 0.2 }
+local COMPONENT_MAX = { area = 40.0, type = 24.0, anatomy = 25.0, demand = 8.0 }
+
+local function finite_positive(v)
+  return v ~= nil and v == v and v ~= math.huge and v ~= -math.huge and v > 0
+end
+
+-- resolve_config(config) -> a fully-populated, memoized config. PURE. Every absent field
+-- falls back to the committed §5 literals, so `score(issue)` / `score(issue, nil)` /
+-- `score(issue, {})` reproduce the calibrated rubric byte-for-byte; a config that injects
+-- relearned tiers/weights/thresholds changes the outcome. The library only APPLIES a
+-- config -- the CONSUMER (codex-triage/core.lua) is the impure loader that reads
+-- data/area_rubric.json and builds it, keeping this library pure.
+local function resolve_config(config)
+  if type(config) == "table" and config.__rubric_resolved then
+    return config
+  end
+  local src = (type(config) == "table") and config or {}
+  local src_tiers = (type(src.tiers) == "table") and src.tiers or {}
+  local src_points = (type(src.tier_points) == "table") and src.tier_points or {}
+  local src_thresholds = (type(src.thresholds) == "table") and src.thresholds or {}
+  local src_weights = (type(src.weights) == "table") and src.weights or {}
+  local weights = {}
+  for _, k in ipairs(COMPONENT_KEYS) do
+    local v = tonumber(src_weights[k])
+    weights[k] = finite_positive(v) and v or DEFAULT_WEIGHTS[k]
+  end
+  return {
+    __rubric_resolved = true,
+    tiers = {
+      A = src_tiers.A or DEFAULT_TIER_SETS.A,
+      B = src_tiers.B or DEFAULT_TIER_SETS.B,
+      C = src_tiers.C or DEFAULT_TIER_SETS.C,
+      D = src_tiers.D or DEFAULT_TIER_SETS.D,
+    },
+    tier_points = {
+      A = tonumber(src_points.A) or DEFAULT_TIER_POINTS.A,
+      B = tonumber(src_points.B) or DEFAULT_TIER_POINTS.B,
+      C = tonumber(src_points.C) or DEFAULT_TIER_POINTS.C,
+      D = tonumber(src_points.D) or DEFAULT_TIER_POINTS.D,
+      unknown = tonumber(src_points.unknown) or DEFAULT_TIER_POINTS.unknown,
+    },
+    thresholds = {
+      attempt = tonumber(src_thresholds.attempt) or DEFAULT_THRESHOLDS.attempt,
+      candidate = tonumber(src_thresholds.candidate) or DEFAULT_THRESHOLDS.candidate,
+      low = tonumber(src_thresholds.low) or DEFAULT_THRESHOLDS.low,
+    },
+    weights = weights,
+  }
+end
+R.resolve_config = resolve_config
+
+-- default_config() -> the committed literal config (handy for tests + callers that want to
+-- start from the calibration and override a single field). PURE.
+function R.default_config()
+  return resolve_config(nil)
+end
+
+-- tier_sets_from_rubric(rubric) -> {A={name=true,...},B,C,D} lowercased tier sets built
+-- from a DECODED area_rubric.json (rubric.areas[name].tier tag). PURE (no IO). Returns nil
+-- when no usable areas map is present, so the caller keeps the literal defaults.
+function R.tier_sets_from_rubric(rubric)
+  if type(rubric) ~= "table" or type(rubric.areas) ~= "table" then
+    return nil
+  end
+  local sets = { A = {}, B = {}, C = {}, D = {} }
+  local any = false
+  for name, spec in pairs(rubric.areas) do
+    local tag = (type(spec) == "table") and spec.tier or nil
+    local letter = TIER_TAG_TO_LETTER[tostring(tag)]
+    if letter ~= nil and type(name) == "string" then
+      sets[letter][name:lower()] = true
+      any = true
+    end
+  end
+  if not any then
+    return nil
+  end
+  return sets
+end
+
+-- weights_from_selection_model(sm) -> {area,type,anatomy,demand} rubric multipliers from a
+-- fitted, ACCEPTED selection_model. PURE. Returns nil unless the model is ACCEPTED with
+-- finite, positive weights (fail-safe: keep the committed unit weights rather than apply a
+-- degenerate fit).
+--
+-- Mapping: each fitted weight becomes a relative emphasis m_k = fitted_w_k / prior_w_k (a
+-- component the fit did not move stays 1.0). The m_k are then RE-NORMALIZED to be SCALE-
+-- PRESERVING: the maximum attainable score Σ mult_k·COMPONENT_MAX_k is held invariant at
+-- Σ COMPONENT_MAX_k (~97), so the weights only REDISTRIBUTE emphasis across components and
+-- can NEVER inflate/deflate the overall score scale. That keeps the §5 bins (58/45/32) on
+-- the same calibrated score scale without re-deriving thresholds - relative re-weighting can
+-- still move an issue across a bin, but the axis itself is never rescaled (and a uniform
+-- re-scale of all fitted weights is therefore a no-op, as it should be - only RELATIVE
+-- differences carry signal).
+--
+-- HONEST SCOPE (not the accepted logit): this is a bounded, scale-preserving RE-EMPHASIS of
+-- the calibrated §5 rubric-point scorer - NOT the fitted logistic model itself (which lives
+-- in logit space with a bias term, over normalized features). codex-learn's §6 gate (AUC +
+-- monotonic bins) validates that logit model; production applies this conservative re-
+-- emphasis derived from its accepted weights. Running the accepted logit directly in
+-- production (with fit-emitted score-space thresholds) is the fully §6-rigorous follow-up.
+function R.weights_from_selection_model(sm)
+  if type(sm) ~= "table" or sm.accepted ~= true or type(sm.weights) ~= "table" then
+    return nil
+  end
+  local raw = {}
+  local weighted_max, total_max = 0.0, 0.0
+  for _, k in ipairs(COMPONENT_KEYS) do
+    local fw = tonumber(sm.weights[k])
+    local prior = FIT_WEIGHT_PRIOR[k]
+    if not finite_positive(fw) or not finite_positive(prior) then
+      return nil
+    end
+    raw[k] = fw / prior
+    weighted_max = weighted_max + raw[k] * COMPONENT_MAX[k]
+    total_max = total_max + COMPONENT_MAX[k]
+  end
+  if not finite_positive(weighted_max) then
+    return nil
+  end
+  local scale = total_max / weighted_max -- hold the max attainable score invariant
+  local out = {}
+  for _, k in ipairs(COMPONENT_KEYS) do
+    out[k] = raw[k] * scale
+  end
+  return out
+end
 
 -- ---------------------------------------------------------------------------
 -- issue field normalizers (accept REST array-of-strings, REST array-of-objects,
@@ -133,18 +293,19 @@ R.issue_number = issue_number
 -- ---------------------------------------------------------------------------
 
 -- area_tier: best tier among the issue's labels (A > B > C > D), or "unknown".
--- A label is matched case-insensitively against the embedded tier sets.
-function R.area_tier(labels)
+-- A label is matched case-insensitively against the tier sets (config-injected or literal).
+function R.area_tier(labels, config)
+  local sets = resolve_config(config).tiers
   local best = nil
   for _, label in ipairs(labels) do
-    if TIER_SETS.A[label] then
+    if sets.A[label] then
       return "A" -- A is the best possible; short-circuit.
-    elseif TIER_SETS.B[label] then
+    elseif sets.B[label] then
       best = best or "B"
       if best == "C" or best == "D" then best = "B" end
-    elseif TIER_SETS.C[label] then
+    elseif sets.C[label] then
       if best ~= "B" then best = "C" end
-    elseif TIER_SETS.D[label] then
+    elseif sets.D[label] then
       best = best or "D"
     end
   end
@@ -204,24 +365,27 @@ function R.demand(reactions)
   return r / 40 * 8
 end
 
--- classify: the §5 bin gate. Pure over the four decision inputs so the bin
--- thresholds (58/45/32) are directly testable at the boundaries.
-function R.classify(score, tier, issue_type, repro_ok)
+-- classify: the §5 bin gate. Pure over the four decision inputs; the bin thresholds
+-- (default 58/45/32, config-overridable) are directly testable at the boundaries.
+function R.classify(score, tier, issue_type, repro_ok, config)
+  local th = resolve_config(config).thresholds
   local attemptable_tier = (tier == "A" or tier == "B")
   local attemptable_type = (issue_type == "bug" or issue_type == "regression")
-  if score >= 58 and attemptable_tier and attemptable_type and repro_ok then
+  if score >= th.attempt and attemptable_tier and attemptable_type and repro_ok then
     return "ATTEMPT"
-  elseif score >= 45 then
+  elseif score >= th.candidate then
     return "CANDIDATE"
-  elseif score >= 32 then
+  elseif score >= th.low then
     return "LOW"
   end
   return "SKIP"
 end
 
--- score(issue) -> { score, bin, breakdown, skip_reason }
--- Implements METHODOLOGY §5 verbatim, including the two hard drops.
-function R.score(issue)
+-- score(issue[, config]) -> { score, bin, breakdown, skip_reason }
+-- Implements METHODOLOGY §5 verbatim, including the two hard drops. `config` (optional)
+-- injects relearned tiers/tier_points/thresholds/weights; absent -> the committed literals.
+function R.score(issue, config)
+  local cfg = resolve_config(config)
   local labels = R.normalize_labels(issue)
   local reactions = reactions_of(issue)
 
@@ -232,12 +396,12 @@ function R.score(issue)
         score = 0,
         bin = "SKIP",
         skip_reason = "SKIP-security",
-        breakdown = { area_tier = 0, type = 0, anatomy = 0, demand = 0, tier = R.area_tier(labels) },
+        breakdown = { area_tier = 0, type = 0, anatomy = 0, demand = 0, tier = R.area_tier(labels, cfg) },
       }
     end
   end
 
-  local tier = R.area_tier(labels)
+  local tier = R.area_tier(labels, cfg)
 
   -- HARD DROP 2: best area tier == D (graveyard).
   if tier == "D" then
@@ -249,14 +413,20 @@ function R.score(issue)
     }
   end
 
-  local area_points = TIER_POINTS[tier] or 8
+  local area_points = cfg.tier_points[tier] or cfg.tier_points.unknown or 8
   local type_points, issue_type = R.type_bonus(labels, reactions)
   local anatomy_points, has_version = R.anatomy(body_of(issue))
   local demand_points = R.demand(reactions)
   local repro_ok = (anatomy_points >= 8) or has_version
 
-  local total = area_points + type_points + anatomy_points + demand_points
-  local bin = R.classify(total, tier, issue_type, repro_ok)
+  -- Per-component multipliers (default 1.0 == committed calibration; a relearned
+  -- selection_model re-weights the emphasis). breakdown keeps the RAW §5 component points
+  -- so the fit's feature space (codex-learn/core/fit.lua) + downstream normalization
+  -- (codex-saga progress) stay stable regardless of the weighting.
+  local w = cfg.weights
+  local total = w.area * area_points + w.type * type_points
+    + w.anatomy * anatomy_points + w.demand * demand_points
+  local bin = R.classify(total, tier, issue_type, repro_ok, cfg)
 
   return {
     score = total,
@@ -368,14 +538,17 @@ end
 -- cluster is NEVER dropped merely because its most-reacted representative did not
 -- itself bin ATTEMPT. Within a cluster we choose the representative when it is
 -- itself ATTEMPT, otherwise the highest-scoring ATTEMPT member (ties broken by
--- more reactions, then smaller number, for determinism). Pure: no network/IO.
-function R.attempt_candidates(issues, index, repo)
+-- more reactions, then smaller number, for determinism). Pure: no network/IO. The optional
+-- `config` (built by the consumer from data/area_rubric.json) is resolved ONCE and threaded
+-- into every per-issue R.score, so a relearned rubric re-scores the whole funnel.
+function R.attempt_candidates(issues, index, repo, config)
   repo = repo or "openai/codex"
+  local cfg = resolve_config(config)
   local order = {} -- cluster keys in first-ATTEMPT-appearance order (deterministic)
   local groups = {} -- key -> { entries = {...} }
 
   for _, issue in ipairs(issues or {}) do
-    local scored = R.score(issue)
+    local scored = R.score(issue, cfg)
     if scored.bin == "ATTEMPT" then
       local key = R.dedup_key(issue, index, repo)
       local group = groups[key]
